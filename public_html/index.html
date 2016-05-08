@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>gwss is WebSocket Server</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="/static/css/bootstrap.min.css">
+	<link rel="stylesheet" href="/static/css/bootstrap-theme.min.css">
+	<link rel="stylesheet" href="/static/css/styles.css">
+	<script src="/static/js/jquery.min.js"></script>
+
+<!-- ### gwss:begin -->
+	<script src="/static/js/gwss-debug.js"></script>
+	<script>
+
+	// This function is called evry $gwss_retry seconds while
+	// the websocket is closed (server unreachable) until open success
+	function gwss_close()
+		{
+		var $state = $('#gwss_status');
+		$state.attr("class", 'label label-warning');
+		$state.text('Close');
+		$(".gwss_close").attr("disabled", true);
+		$(".gwss_open").attr("disabled", false);
+		}
+
+	// This function is fired on each websocket error
+	// (incuding close event)
+	function gwss_error()
+		{
+		var $state = $("#gwss_status");
+        $state.hide();
+		$state.text('Error');
+		$state.attr("class", 'label label-important');
+		$state.fadeIn("slow");
+		setTimeout(function(){
+			$state.hide();
+			$state.text('Open');
+			$state.attr("class", 'label label-success');
+			$state.fadeIn("slow");
+			}, 2000);
+		}
+	// This function is called when websocket receive a ping
+	// because of inactivity. Time between pings can be set via api
+	//
+  	function gwss_ping(msg)
+		{
+		// In real life, this function should do nothing
+		// void(0);
+		// or can be simply be removed...
+		var $state = $("#gwss_status");
+		$state.hide();
+		$state.text('Ping');
+		$state.attr("class", 'label label-info');
+		$state.fadeIn("slow");
+		setTimeout(function(){
+			$state.hide();
+			$state.text('Open');
+			$state.attr("class", 'label label-success');
+			$state.fadeIn("slow");
+			}, 2000);
+		}
+
+	// This function is called when websocket is opened
+	// use it to subscribe to services needed by this page
+  	function gwss_open()
+		{
+		var $state = $('#gwss_status');
+		$state.hide();
+		$state.text('Open');
+		$state.attr("class", 'label label-success');
+		$state.fadeIn("slow");
+
+		// Flip-flop open/close buttons
+		$(".gwss_close").attr("disabled", false);
+		$(".gwss_open").attr("disabled", true);
+
+		// Subscribe to all checked services
+		$(".service").each(function() {
+			if (this.checked)
+				{
+				gwss_subscription(gwss, this.value, true, "gwss_" + this.value);
+				}
+			});
+		}
+
+	// This function is called for all received messages
+	// If you need to handle specific messages, you need to add
+	// your code in this function :
+  	function gwss_receive(json)
+		{
+		// This server send JSON messages with "service", "action" and "data" elements
+		// {"service": "echo", "action": "set", "data": { ... }}
+		//
+
+		if (json.service == "gwss" && json.action == "subscribe")
+			{
+			// This message contain our unique client id
+			$('#' + json.data.id).text(json.data.value);
+			}
+
+		// Can provide from any service...
+		if (json.action == "set")
+			{
+			// If value is an array, creating li elements
+			if (Array.isArray(json.data.value)) {
+				// First we remove all all entry
+				$('#' + json.data.id).children().remove();
+				// Adding received Array
+				for(idx in json.data.value) {
+					$('#' + json.data.id).prepend('<li>' + json.data.value[idx] + '</li>');
+					}
+				}
+			else{
+				// If data has a type
+				if (typeof json.data.type !== 'undefined') {
+					if (json.data.type == "base64") {
+						$('#' + json.data.id).children().remove();
+						$('#' + json.data.id).append(atob(json.data.value));
+						}
+					if (json.data.type == "attr") {
+						var img = $('<embed type="image/svg+xml" src="' + json.data.value + '" />'); 
+						$('#' + json.data.id).children().remove();
+						$('#' + json.data.id).append(img);
+						//$('#' + json.data.id).append('<embed type="image/svg+xml" src="%s" />' % json.data.value);
+						//$('#' + json.data.id).children().attr(json.data.name,json.data.value);
+						}
+					}
+				else {
+					$('#' + json.data.id).text(json.data.value);
+					}
+				}
+			}
+		}
+
+function gwss_subscription(ws, service, onoff, data)
+    {
+    var $debug = $('#gwss_debug');
+    if (onoff)
+        {
+        if (gwss_debug)
+            $debug.prepend('<li class="label-success">Websocket:Subscribe service ' + service + " " + data);
+        ws.send('{"service":"' + service + '", "action":"subscribe", "data":"' + data + '"}');
+        }
+    else
+        {
+        if (gwss_debug)
+            $debug.prepend('<li class="label-warning">Websocket:Unsubscribe service ' + service + " " + data);
+        ws.send('{"service":"' + service + '", "action":"unsubscribe", "data":"' + data + '"}');
+        }
+    return(false);
+    }
+
+
+	// Let's play !
+	$(document).ready(function() {
+		// Server and port where gwss is running
+		gwss_host = 'gwss.modulix.net';
+		gwss_port = 80;
+		// Seconds to wait before retry to open a closed socket
+		gwss_retry = 10;
+		// Display or not debug entries
+		gwss_debug = false;
+		// Opening the socket in global handler
+		gwss = openSocket();
+		});
+	</script>
+
+<!-- ### gwss:end -->
+
+</head>
+<body>
+  <div class="container">
+    <h1>gwss is WebSocket Server</h1>
+	<p>
+	This page shows some examples of included services in <b>gwss</b>, you can have a look on source code in the <b>./services</b> subdirectory of this <a href="https://github.com/modulix/gwss">project</a>.
+	<br />
+	This <a href="http://gwss.modulix.net/">gwss</a> is public, feel free to use it for demo and test purpose. For more serious usage, you need to download sources of gwss from <a href="https://github.com/modulix/gwss">Github</a> and run it on your own webserver. See, included <a href="https://github.com/modulix/gwss/wiki/Doc">documentation</a> about prerequisites and setup.
+	</p>
+	<h2>gwss demonstration page</h2>
+		<p>
+			<table width="100%">
+				<tr>
+					<td>
+						Websocket status : <span id="gwss_status" class="label label-warning">Close</span>
+					</td>
+					<td>
+						<input class="gwss_close" type="button" onclick="gwss.close();" value="Close" disabled></input>
+						<input class="gwss_open" type="button" onclick="gwss = openSocket();" value="Open" disabled></input>
+					</td>
+					<td>
+						UID :<b><span id="gwss_id"><img src="/static/img/loading.gif" alt="loading..."/></span></b>
+					</td>
+				</tr>
+			</table>
+			<br />
+			<br />
+			The connection is permanent and in case of close or failure this page will automaticaly try to reconnect every 10 seconds (depending on gwss_retry value). Have a try to close the websocket and wait to see automatic reconnection. To avoid this feature because of timeout, the server send also a ping each minute if no message is exchanged.
+	  </p>
+    <h2>WebSocket Services</h2>
+    <h3><input class="service" onclick="gwss_subscription(gwss, 'sysdate', this.checked, 'gwss_time');" type="checkbox" value="sysdate"> </input>sysdate service</h3>
+	  <p>
+	  Server datetime : <span id="gwss_time" style="font-weight: bold;"></span>
+	  </p>
+    <h3>chat service</h3>
+	<p>There is a dedicated page for websocket <a href="chat.html">chat service</a>.</p>
+    <h3><input class="service" onclick="gwss_subscription(gwss, 'stats', this.checked, 'gwss_stats');" type="checkbox" value="stats" checked> </input>stats service</h3>
+		<p>
+			Clients connected to this server : <b><span id="gwss_clients_count">?</span></b>
+			<br />
+            Clients connected to this service : <b><span id="gwss_stats_clients_count">?</span></b>
+			<br />
+			<table>
+				<tr>
+					<th>
+						Services
+					</th>
+					<th>
+						Clients
+					</th>
+					<th>
+						Count on last minute
+					</th>
+					<th>
+						Origin
+					</th>
+				</tr>
+				<tr>
+					<td>
+					<ul id="gwss_lst_services"></ul>
+					</td>
+					<td>
+					<ul id="gwss_lst_clients"></ul>
+					</td>
+					<td>
+					<figure id="gwss_stat1" style="width: 320px; height: 240px;">
+						<embed type="image/svg+xml" src="" />
+					</figure>
+					</td>
+					<td>
+                    <figure id="gwss_stat2" style="width: 440px; height: 360px;">
+                        <embed type="image/svg+xml" src="" />
+                    </figure>
+                    </td>
+				</tr>
+		</table>
+<!--
+    <h3><input class="service" onclick="gwss_subscription(gwss, 'logger', this.checked, 'gwss_logger');" type="checkbox" value="logger" checked> </input>logger service</h3>
+	<div class="hscroll20" width="25hw">
+	<ul id="gwss_logger"></ul>
+	</div>
+-->
+    <h3><input class="service" onclick="gwss_subscription(gwss, 'echo', this.checked, 'message');" type="checkbox" value="echo" checked> </input>echo service</h3>
+	<p>
+	<div id="messages"></div>
+	To broadcast informations to all clients viewing this page, you can also use a simple REST API :
+	</p>
+      <div class="row">
+        <div class="span4">
+          <table class="table table-striped table-bordered table-condensed">
+            <tr>
+              <th>id</th><th>value</th>
+            </tr>
+            <tr id="row1">
+              <td> row1_1 </td><td id="row1_1"> 0 </td>
+              <td> row1_2 </td><td id="row1_2"> 0 </td>
+              <td> row1_3 </td><td id="row1_3"> 0 </td>
+			  <td>
+			  	<a href="/api/echo/set?id=row1_1&value=100" target="api_result">Set1 100</a>
+			  	<a href="/api/echo/set?id=row1_2&value=100" target="api_result">Set2 100</a>
+			  	<a href="/api/echo/set?id=row1_3&value=100" target="api_result">Set3 100</a>
+				<br>
+			  	<a href="/api/echo/set?id=row1_1&value=300" target="api_result">Set1 300</a>
+			  	<a href="/api/echo/set?id=row1_2&value=300" target="api_result">Set2 300</a>
+			  	<a href="/api/echo/set?id=row1_3&value=300" target="api_result">Set3 300</a>
+				<br>
+			  	<a href="/api/echo/set?id=row1_1&value=600" target="api_result">Set1 600</a>
+			  	<a href="/api/echo/set?id=row1_2&value=600" target="api_result">Set2 600</a>
+			  	<a href="/api/echo/set?id=row1_3&value=600" target="api_result">Set3 600</a>
+				</td>
+            </tr>
+            <tr id="row2">
+              <td> row2_1 </td><td id="row2_1"> 0 </td>
+              <td> row2_2 </td><td id="row2_2"> 0 </td>
+              <td> row2_3 </td><td id="row2_3"> 0 </td>
+			  <td>
+			  	<a href="/api/echo/set?id=row2_1&value=100" target="api_result">Set 100</a>
+				<br>
+			  	<a href="/api/echo/set?id=row2_1&value=300" target="api_result">Set 300</a>
+				<br>
+			  	<a href="/api/echo/set?id=row2_1&value=600" target="api_result">Set 500</a>
+				</td>
+            </tr>
+          </table>
+        </div>
+		<iframe name="api_result" height="40" width="100%">Return code from API...</iframe>
+    <h3><input onclick="gwss_debug = this.checked;" type="checkbox" value="debug"> </input>debug</h3>
+	<p>Display all events and messages received by the websocket. This is done by the Javascript included in the header of this page.</p>
+	<div class="hscroll10">
+		<ul id="gwss_debug"></ul>
+	</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,13 @@
+[Unit]
+Description=WebSocket Server
+After=network.target remote-fs.target
+
+[Service]
+Type=simple
+User=nginx
+ExecStart=/var/www/bin/gwss.py
+Restart=on-abort
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

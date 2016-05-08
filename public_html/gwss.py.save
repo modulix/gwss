@@ -1,0 +1,379 @@
+#!/usr/bin/env python
+from __future__ import print_function
+import sys
+import json
+import os
+import time
+import datetime
+import logging
+
+from threading import Thread
+if sys.version_info.major == 2:
+	print("running Python 2.x")
+	import urlparse
+	from tornado import websocket, web, ioloop
+
+if sys.version_info.major == 3:
+	print("running Python 3.x")
+	import urllib.parse as urlparse
+	#from sockjs.tornado import SockJSRouter, SockJSConnection
+
+VERSION = "0.1.0"
+server = "gwss.modulix.net"
+port = 8888
+html_dir = "/usr/share/nginx/html/"
+
+class WebSocketServer(Thread):
+	"""
+	This server is used to control all WebSocketServices
+	found in ./services/ directory
+	Also a list of all current websocked is also checked to
+	send "ping" it no activity is detceted in last 42 sec.
+	"""
+	def __init__(self):
+		super(WebSocketServer, self).__init__()
+		print("gwss:WebSocketServer init...")
+		self.clients = []
+		self.services = []
+		self.listen = True
+		self.daemon = True
+		self.track = {}
+	def run(self):
+		print("gwss:WebSocketServer run...")
+		# This server start a service thread for each .py file found in ./services directory
+		print("gwss:WebSocketServer starting all ./services :")
+		svc_dir = "./services"
+		for file_name in os.listdir(svc_dir):
+			(fln, fle) = os.path.splitext(file_name)
+			if os.path.isfile(os.path.join(svc_dir, file_name)) and fle == ".py" and fln != "__init__":
+				print("gwss:service :%s" % file_name)
+				service = WebSocketService(fln, self.track)
+				self.services.append(service)
+		for service in self.services:
+			service.start()
+		# Pooling all clients to send ping message to "inactive" clients
+		while self.listen:
+			curtime = datetime.datetime.now()
+			delta = datetime.timedelta(seconds=42)
+			for client in self.clients:
+				if (curtime - self.track[id(client)]['last']) > delta: 
+					self.ping(client)
+			# More client, less sleeping... (from 10s to 0.1s)
+			# 1->10s, 100->1s 1000+ -> 0.1s
+			if len(self.clients):
+				t2sleep = max(0.1, min(10, (100 / len(self.clients))))
+			else:
+				t2sleep = 10
+			time.sleep(t2sleep)
+			print("g", end="")
+	def ping(self, client):
+		print("gwss:ping(%s) %s,%s" % (id(client), client.request.remote_ip, client.request.headers['X-Real-Ip']))
+		sysdate = datetime.datetime.now()
+		msg = "ping %s" % sysdate.strftime("%x %X")
+		client.write_message(msg)
+		self.track[id(client)]['last'] = sysdate
+	def send_all(self, msg):
+		if (len(self.clients)):
+			print("gwss:send_all %s" % msg)
+			for client in self.clients:
+				client.write_message(msg)
+				self.track[id(client)]['last'] = datetime.datetime.now()
+	def add_client(self, client):
+		print("gwss:add_client %s" % id(client))
+		if client not in self.clients:
+			self.clients.append(client)
+			self.track[id(client)] = {'last':datetime.datetime.now(), 'ip': client.request.headers['X-Real-Ip']}
+		for service in self.services:
+			service.events.append({"client" : client, "event": "add_client"})
+	def del_client(self, client):
+		print("gwss:del_client %s" % id(client))
+		for service in self.services:
+			if client in service.clients:
+				service.del_client(client)
+				service.events.append({"client" : client, "event": "del_client"})
+				# Need to give some time to service to process event before
+				# really removing the client
+				time.sleep(service.heartbeat)
+		if client in self.clients:
+			self.clients.remove(client)
+			del self.track[id(client)]
+	def add_svc_client(self, svc, client, args):
+		print("gwss:add_svc_client(%s,%s,%s)" % (svc, id(client), args))
+		for service in self.services:
+			if service.name == svc:
+				service.add_client(client)
+				service.events.append({"client" : client, "event": "add_svc_client"})
+				break
+	def del_svc_client(self, svc, client, args):
+		print("gwss:del_svc_client(%s,%s,%s)" % (svc, id(client), args))
+		for service in self.services:
+			if service.name == svc:
+				service.events.append({"client" : client, "event": "del_svc_client"})
+				service.del_client(client)
+				break
+	def stop(self):
+		print("stop %s" % self)
+		for service in services:
+			service.stop()
+			service.join()
+		self.listen = False
+	def __del__(self):
+		print("gwss:WebSocketServer dead")
+
+class WebSocketWorker(Thread):
+	"""
+	This thread is in going to do the asked job
+	written in run def of services/xxxx.py file
+	(xxxx is the service name)
+	"""
+	def __init__(self, service, client, usage, event, response):
+		#print("%s:WebSocketWorker init(%s)..." % (service.name, id(client)))
+		super(WebSocketWorker, self).__init__(name="%sWorker" % service.name)
+		self.daemon = True
+		self.service = service
+		self.send = response
+		self.event = event
+		self.client = client
+		self.usage = usage
+	def run(self):
+		exec("from services import %s" % self.service.name)
+		exec("retour = %s.%s(self.service, gwss, self.client, self.event)" % (self.service.name, self.usage))
+		#self.send(msg)
+		print("w", end="")
+	#def __del__(self):
+		#print("WebSocketWorker dead")
+
+class WebSocketService(Thread):
+	"""
+	This thread is in charge to send responses
+	to subscribed clients from threaded worker(s):
+	* broadcast mode :
+		- timer : (one worker for all/group clients, regular broadcast)
+		- event : (one worker for all/group clients, on each new event)
+	* p2p mode :
+		- thread : (one worker for one client)
+		- synchro : (one worker for one client, waiting until end)
+	"""
+	def __init__(self, name, track):
+		print("WebSocketService(%s) init..." % name)
+		super(WebSocketService, self).__init__()
+		self.name = name
+		self.track = track
+		self.clients = []
+		self.groups = []
+		self.listen = True
+		self.daemon = True
+		self.workers = []
+		self.events = []
+		# Service configuration
+		exec("from services import %s" % self.name)
+		exec("setup = %s.%s(self, gwss)" % (self.name, self.name))
+		print("WebSocketService %s setup:%s" % (self.name, setup))
+		# Depending on which sort of worker:
+		self.usages = setup["data"]["usage"]
+		self.heartbeat = float(setup["data"]["frequency"])
+
+	def run(self):
+		print("WebSocketService %s run..." % self.name)
+		while self.listen:
+			if "timer" in self.usages:
+				if len(self.clients):
+					self.worker = WebSocketWorker(self, gwss.clients, "timer", "timer", self.send_all)
+					self.worker.start()
+					#self.worker.join()
+			if "event" in self.usages:
+				for evt in self.events:
+					print("WebSocketService:event(%s)" % (evt["event"]))
+					self.worker = WebSocketWorker(self, evt["client"], "event", evt["event"], self.send_all)
+					self.worker.start()
+					self.events.remove(evt)
+					#self.worker.join()
+			time.sleep(self.heartbeat)
+			print("s", end="")
+
+	def add_client(self, client):
+		print("%s:add_client(%s)"% (self.name, id(client)))
+		if client not in self.clients:
+			self.clients.append(client)
+			# for each client launch a worker ?!
+			if "timer" in self.usages:
+				# Broadcast workers are started/finished in main run() loop
+				# there is only 1 permanent worker for all clients 
+				print("%s:timer (1 -> n)" % self.name)
+			elif "broadcast" in self.usages:
+				# Broadcast workers are started/finished in main run() loop
+				# there is only 1 worker by event for all clients
+				print("%s:broadcast (1 -> n)" % self.name)
+			elif "event" in self.usages:
+				# Broadcast workers are started/finished in main run() loop
+				# there is only 1 worker by event for all clients
+				print("%s:event (1 -> n)" % self.name)
+			elif "sync" in self.usages:
+				print("%s:sync (1 -> 1)" % self.name)
+				self.worker = WebSocketWorker(self, client, "sync", "add_client", self.send_all)
+				self.worker.start()
+				self.worker.join()
+			else:
+				# Default usage, "thread"
+				print("%s:threaded (1 -> 1)" % self.name)
+				self.worker = WebSocketWorker(self, client, "thread", "add_client", self.send_all)
+				self.events.append({"client" : client, "event": "client_start"})
+				self.worker.start()
+				# 
+			#print("%s:new event add_client" % self.name)
+	def del_client(self, client):
+		print("%s:del_client %s" % (self.name, id(client)))
+		if client in self.clients:
+			self.clients.remove(client)
+			#print("%s:new event del_client" % self.name)
+			#self.events.append({"client" : client, "event": "del_client"})
+	def send_client(self, client, msg):
+		#print("%s:send_client(%s,%s)" % (self.name, id(client), msg))
+		if client in self.clients:
+			client.write_message(msg)
+			self.track[id(client)]['last'] = datetime.datetime.now()
+	def send_all(self, msg):
+		if len(self.clients):
+			#print("%s:send_all %s" % (self.name, msg))
+			for client in self.clients:
+				client.write_message(msg)
+				self.track[id(client)]['last'] = datetime.datetime.now()
+	def stop(self):
+		print("%s:stop" % self.name)
+		self.listen = False
+	def __del__(self):
+		print("%s:WebSocketService dead" % self.name)
+
+class SocketHandler(websocket.WebSocketHandler):
+	"""
+	def check_origin(self, origin):
+		print("SocketHandler:check_origin:(%s)" % origin)
+		#if origin == "http://localhost:8888":
+
+		# This is a public server
+		return(True)
+	"""
+	def open(self):
+		print("SocketHandler:open:(%s) %s %s" % (self.request.uri, self.request.remote_ip, self.request.headers['X-Real-Ip']))
+		gwss.add_client(self)
+		# Return unique id
+		msg = '{"service": "gwss", "action": "subscribe", "data": {"id":"gwss_id", "value":"%s"}}' % id(self)
+		self.send(msg)
+
+	def send(self, message):
+		print("SocketHandler:send %s" % message)
+		self.write_message(message)
+
+	def on_message(self, message):
+		print("SocketHandler:message:(%s)" % message)
+		service = action = data = ""
+		try:
+			msg = json.loads(message)
+			service = msg["service"]
+			action = msg["action"]
+			data = msg["data"]
+			print("service=%s action=%s data=%s" % (service, action, data))
+		except:
+			self.send("error:Not a valid JSON message %s" % message)
+			pass
+		if action == "unsubscribe":
+			gwss.del_svc_client(service, self, data)
+		if action == "subscribe":
+			gwss.add_svc_client(service, self, data)
+		# Using the "receive" function of ./services/service.py
+		for svc in gwss.services:
+			if svc.name == service:
+				exec("from services import %s" % service)
+				exec("retour = %s.receive(gwss, svc, action, self, data)" % service)
+				print("retour=%s" % retour)
+
+	def on_close(self):
+		print("SocketHandler:close")
+		gwss.del_client(self)
+
+class ApiHandler(web.RequestHandler):
+
+	@web.asynchronous
+	def get(self, *args):
+		try:
+			(prefixe, service, data) = self.request.uri[1:].split('/', 2)
+			(action, data) = data.split('?', 1)
+			print("%s: service=%s action=%s data=%s" % (self.request.uri, service, action, data))
+		except:
+			self.finish("error:Not a valid API url %s\n(/api/service/action)" % (self.request.uri))
+			return
+		req = urlparse.parse_qs(self.request.query)
+		try:
+			data = {"id": req["id"][0], "value" : req["value"][0]}
+		except:
+			self.finish("error:Not a valid API format %s\n(should contain id=99&value=xxx)" % (self.request.uri))
+			return
+		for svc in gwss.services:
+			if service == svc.name:
+				# Using the "api" function of ./services/service.py
+				exec("from services import %s" % service)
+				exec("msg = %s.api(gwss, action, data)" % service)
+				self.finish("ok:%s" % msg)
+				return
+
+		self.finish("error:Service(%s) or action(%s) not found..." % (service, action))
+
+	@web.asynchronous
+	def post(self):
+		print("api_post:%s" % self.request)
+		self.finish()
+
+"""
+for futur dev...
+class EchoConnection(SockJSConnection):
+	def on_message(self, msg):
+		print("on_message:%s" % msg)
+		self.send(msg)
+"""
+
+class IndexHandler(web.RequestHandler):
+	def get(self, *args):
+		print("GET:%s" % self.request.uri)
+		# Warning you need to remove the first "/" from uri
+		# before use os.path.join
+		filename = os.path.join(html_dir, self.request.uri[1:])
+		if filename[-1:] == "/":
+			filename = os.path.join(filename, "index.html")
+		print("%s" %  filename)
+		self.render(os.path.join(html_dir, filename))
+
+if __name__ == "__main__":
+	"""
+	This is a the main of this multi-threaded daemon
+	"""
+	app = web.Application([
+		(r"/gwss", SocketHandler),
+		(r"/api/(.*)", ApiHandler),
+		(r"/(.*)", IndexHandler),
+		# Note: If you have nginx or apache in front of this server
+		# you can remove theses lines and configure your front
+		# to serve static files and act as proxy for /ws and /api locations
+		# begin static html
+		#(r"/", IndexHandler),
+		#(r"/(favicon.ico)", web.StaticFileHandler, {"path": "%s/static/img" % html_dir}),
+		#(r"/(robots.txt)", web.StaticFileHandler, {"path": "%s/static" % html_dir}),
+		#(r"/static/(.*)", web.StaticFileHandler, {"path": "%s/static" % html_dir}),
+		# end static html
+])
+
+	##FORMAT = "%(asctime)-15s %(clientip)s %(user)-8s %(message)s"
+	##logging.basicConfig(format=FORMAT)
+	#d = {'client': '127.0.0.1', 'user': 'root'}
+	#logging.info("gwss: %s", "Starting...", extra=d)
+	logging.info("gwss: %s", "Starting...")
+	logging.info("gwss: %s", __file__)
+
+	#EchoRouter = SockJSRouter(EchoConnection, "/ws")
+	#app = web.Application(EchoRouter.urls)
+	gwss = WebSocketServer()
+	gwss.start()
+	print("WebSocket Server running at http://%s:%s/" % (server, port))
+	app.listen(port)
+	ioloop.IOLoop.instance().start()
+	gwss.stop()
+	gwss.join()

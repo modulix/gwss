@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>gwss is WebSocket Server</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="/static/css/bootstrap.min.css">
+	<link rel="stylesheet" href="/static/css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="/static/css/bootstrap-editable.css">
+	<link rel="stylesheet" href="/static/css/styles.css">
+	<script src="/static/js/jquery.min.js"></script>
+    <script src="/static/js/bootstrap-editable.min.js"></script>
+
+<!-- ### gwss:begin -->
+	<script src="/static/js/gwss.js"></script>
+	<script>
+	// This function is called when websocket is opened
+	// use it to subscribe to services needed by this page
+  	function gwss_open()
+		{
+		var $state = $('#gwss_status');
+        $state.attr("class", 'label label-success');
+        $state.text('Connected');
+		gwss_subscribe(gwss, "chat", JSON.stringify({"id": "gwss_id", "value": gwss_id}));
+		//gwss_subscribe(gwss, "sysdate", '{"id": "gwss_time", "value": "Europe/Paris"}');
+		}
+	
+
+	// This function is called for all received messages
+	// If you need to handle specific messages, you need to add
+	// your code in this function :
+  	function gwss_receive(json)
+		{
+		// This server send JSON messages with "service", "action" and "data" elements
+		// {"service": "chat", "action": "set", "data": { ... }}
+		//
+
+		if (json.service == "gwss" && json.action == "subscribe") {
+			// This message contain our unique client id
+			$('#' + json.data.id).text(json.data.value);
+			}
+		if (json.service == "chat" && json.action == "set") {
+			if (json.data.id == "gwss_id") {
+				$('#username').text(json.data.value);
+				$('#username').editable({
+					type: 'text',
+					pk: 1,
+					url: '/api/chat/set',
+					title: 'Username',
+					validate: function(value) {
+						if($.trim(value) == '') {
+							return 'This field is required';
+							}
+						else {
+							gwss.send('{"service":"chat", "action":"user", "data": {"id":"gwss_id", "value":"' + $.trim(value) + '"}}');
+							}
+						},
+					send: 'never'
+					});
+				}
+			else {
+				//$('#' + json.data.id).prepend('<li>' + json.data.value + '</li>');
+				$('#' + json.data.id).append('<li>' + json.data.value + '</li>');
+				$("#msg_container").prop({ scrollTop: $("#msg_container").prop("scrollHeight") });
+				}
+			}
+		if (json.service == "sysdate") {
+			$('#gwss_time').text(json.data.value);
+			}
+		}
+  	function gwss_send()
+		{
+		var msg = $("#message").val();
+		gwss.send('{"service":"chat", "action":"set", "data": {"id":"messages", "value":"' + msg + '"}}');
+		}
+
+	$(document).ready(function() {
+		// Server and port where gwss is running
+		gwss_host = 'gwss.modulix.net';
+		gwss_port = 80;
+		// Seconds to wait before retry to open a closed socket
+		gwss_retry = 10;
+		// Opening the socket in global handler
+		gwss = openSocket();
+		// Setup editable mode
+		$.fn.editable.defaults.mode = 'inline';
+		$.fn.editable.defaults.ajaxOptions = {type: "GET"};
+		});
+	</script>
+
+<!-- ### gwss:end -->
+
+</head>
+<body>
+<div class="container-fluid">
+    <h1>gwss is WebSocket Server</h1>
+	<p>
+		This is a free and public IRC using <a href="/">gwss</a> services.
+	<br />
+	<span id="gwss_status" class="label label-warning">Not connected</span>
+	UID :<b><span id="gwss_id"><img src="/static/img/loading.gif" alt="loading..."/></span></b>
+	Server datetime : <span id="gwss_time" style="font-weight: bold;"></span>
+	<br />
+	Clients connected to this server : <b><span id="gwss_clients_count">?</span></b>
+	<br />
+	Clients connected to this service : <b><span id="gwss_chat_clients_count">?</span></b>
+	</p>
+<div class="btn-group" role="group">
+  <button type="button" class="btn btn-default">Main</button>
+  <button type="button" class="btn btn-default">#admin</button>
+  <button type="button" class="btn btn-default">#bordeaux</button>
+  <button type="button" class="btn btn-default">#paris</button>
+</div>
+<ul class="nav nav-tabs">
+  <li role="presentation" class="active"><a href="#">Home</a></li>
+  <li role="presentation"><a href="#">Profile</a></li>
+  <li role="presentation"><a href="#">Messages</a></li>
+</ul>
+  <div class="row">
+    <div class="col-sm-2">
+
+<ul class="list-group">
+  <li class="list-group-item list-group-item-success"><span class="badge">1</span>Main room<span class="label label-default">Default</span></li>
+  <li class="list-group-item list-group-item-danger"><span class="badge">1</span>#admin</li>
+  <li class="list-group-item list-group-item-info"><span class="badge">12</span>#bordeaux</li>
+  <li class="list-group-item"><span class="badge">1</span>#paris</li>
+  <li class="list-group-item list-group-item-warning"><span class="badge">+</span>[new]</li>
+</ul>
+	</div>
+		<div class="col-sm-10">
+			<div id="msg_container" style="overflow-y: scroll; height:400px;">
+				<div id="messages"></div>
+			</div>
+		</div>
+	</div>
+  </div>
+<!-- Sticky bottom footer -->
+	<footer class="footer">
+		<form>
+		<div class="container-fluid">
+			<div class="input-group">
+				<span id="username" class="input-group-addon" data-type="text" data-title="Enter username">Username</span>
+				<input id="message" type="text" class="form-control">
+				<span class="input-group-addon">:-)</span>
+				<div class="input-group-btn">
+				<button class="btn btn-default btn-primary" onclick="gwss_send();return(false);"type="submit">Send</button>
+				</div>
+			</div>
+		</div>
+		</form>
+		<iframe name="api_result" height="40" width="100%">Return code from API...</iframe>
+	</footer>
+</body>
+</html>

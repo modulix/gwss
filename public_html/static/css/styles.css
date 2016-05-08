@@ -1,0 +1,46 @@
+.hscroll05 {
+    height: 5vh; /* %-height of the viewport */
+    width: 100%; /* %-width of the viewport */
+	/* position: fixed; */
+	overflow-y: scroll;
+	}
+.hscroll10 {
+    height: 10vh; /* %-height of the viewport */
+    width: 100%; /* %-width of the viewport */
+	/* position: fixed; */
+	overflow-y: scroll;
+	}
+.hscroll15 {
+    height: 15vh; /* %-height of the viewport */
+    width: 100%; /* %-width of the viewport */
+	/* position: fixed; */
+	overflow-y: scroll;
+	}
+.hscroll20 {
+    height: 20vh; /* %-height of the viewport */
+    width: 100%; /* %-width of the viewport */
+	/* position: fixed; */
+	overflow-y: scroll;
+	}
+.hscroll50 {
+    height: 50vh; /* %-height of the viewport */
+    width: 100%; /* %-width of the viewport */
+	/* position: fixed; */
+	overflow-y: scroll;
+	}
+
+/* Sticky footer */
+html {
+  position: relative;
+  min-height: 100%;
+}
+body {
+  margin-bottom: 100px;
+}
+.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 100px;
+  background-color: #f5f5f5;
+}
