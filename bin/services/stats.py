@@ -15,7 +15,7 @@ def stats(service, gwss):
 	This service also send some stats periodicaly (timer)
 	timer ----> all_clients
 	"""
-	print("%s:%s" % (service.name, "Init/setup"))
+	gwss.logger.debug("%s:%s" % (service.name, "Init/setup"))
 	# Create service persistent var
 	service.heartbeat = 5
 	service.stat1 = []
@@ -27,7 +27,7 @@ def stats(service, gwss):
 def receive(gwss, service, action, client, data):
 	"""
 	"""
-	print("%s:%s(%s)" % (service.name, id(client), data))
+	gwss.logger.debug("%s:%s(%s)" % (service.name, id(client), data))
 	service.send_all(data)
 
 def event(gwss, service, client, event):
@@ -43,7 +43,7 @@ def event(gwss, service, client, event):
 		client_end_work
 		client_event
 	"""
-	print("%s:event:%s" % (service.name, event))
+	gwss.logger.debug("%s:event:%s" % (service.name, event))
 	message = "error:stats:event:%s" % event
 	if event == "timer":
 		#There are some stats we send evry 5 sec
@@ -139,7 +139,7 @@ def list_all_clients(gwss):
 	return(lst_clients)
 
 def stat1(gwss,service,client):
-	print("%s:%s" % (service.name,"stat1"))
+	gwss.logger.debug("%s:%s" % (service.name,"stat1"))
 	bar_chart = pygal.StackedBar()
 	if len(service.stat1) >= 120:
 		del service.stat1[0]
@@ -148,7 +148,7 @@ def stat1(gwss,service,client):
 	return(base64.b64encode(bar_chart.render()))
 
 def stat2(gwss,service,client):
-	print("%s:%s%s" % (service.name,"stat2",service.stat2))
+	gwss.logger.debug("%s:%s%s" % (service.name,"stat2",service.stat2))
 	worldmap_chart = pygal.maps.world.World()
 	worldmap_chart.title = 'Clients countries'
 	worldmap_chart.add('gwss', service.stat2)

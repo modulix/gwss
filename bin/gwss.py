@@ -5,6 +5,7 @@ import json
 import os
 import time
 import logging
+import logging.handlers
 
 from gevent import socket
 from geventwebsocket.handler import WebSocketHandler
@@ -18,7 +19,7 @@ import gevent
 import signal
 import mimetypes
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 server = "gwss.modulix.net"
 port = 8888
 max_clients = 1000
@@ -42,7 +43,7 @@ from WebSocketWorker import WebSocketWorker
 
 class GWSHandler():
 	def __init__(self, gwss, environ, ws):
-		print("GWSHandler(%s) Init" % id(self))
+		gwss.logger.debug("GWSHandler(%s) Init" % id(self))
 		self.gwss = gwss
 		self.ws = ws
 		self.environ = environ
@@ -59,10 +60,10 @@ class GWSHandler():
 		while self.listen:
 			message = self.ws.receive()
 			if message is None:
-				print("{} socket closed ?! {}".format(datetime.now().strftime("%H:%M:%S"), message))
+				gwss.logger.debug("{} socket closed ?! {}".format(datetime.now().strftime("%H:%M:%S"), message))
 				self.listen = False
 			else:
-				print("GWSHandler(%s):receive:%s" % (id(self),message))
+				gwss.logger.debug("GWSHandler(%s):receive:%s" % (id(self),message))
 				service = action = data = ""
 				msg = json.loads(message)
 				service = msg["service"]
@@ -72,7 +73,7 @@ class GWSHandler():
 						svc.receive(self, message)
 		gwss.del_client(self)
 	#def __del__(self):
-		#print("GWSHandler(%d) dead" % id(self))
+		#gwss.logger.debug("GWSHandler(%d) dead" % id(self))
 
 def GWSGIHandler(environ, response):
 	"""
@@ -83,7 +84,7 @@ def GWSGIHandler(environ, response):
 	msg = status = '404 Not found'
 	response_headers = [("Content-type", "text/text"), ("Content-Length", str(len(msg)))]
 	response(status, response_headers)
-	#print("{} GWSGIHandler {}".format(datetime.now().strftime("%H:%M:%S"), environ))
+	#gwss.logger.debug("{} GWSGIHandler {}".format(datetime.now().strftime("%H:%M:%S"), environ))
 	try:
 		if environ["HTTP_CONNECTION"] == "upgrade" and environ["HTTP_UPGRADE"] == "websocket":
 			ws = True
@@ -93,7 +94,7 @@ def GWSGIHandler(environ, response):
 		ws = False
 		pass
 	if ws:
-		print("GWSGIHandler:%s: opening websocket..." % (environ["PATH_INFO"]))
+		gwss.logger.debug("GWSGIHandler:%s: opening websocket..." % (environ["PATH_INFO"]))
 		ws = environ["wsgi.websocket"]
 		wsh = GWSHandler(gwss, environ, ws)
 		wsh.run()
@@ -103,7 +104,7 @@ def GWSGIHandler(environ, response):
 			try:
 				(prefixe, service, action) = environ["PATH_INFO"][1:].split("/", 2)
 				data = environ["QUERY_STRING"]
-				print("%s: service=%s action=%s data=%s" % (environ["PATH_INFO"], service, action, data))
+				gwss.logger.debug("%s: service=%s action=%s data=%s" % (environ["PATH_INFO"], service, action, data))
 				req = urlparse.parse_qs(environ["QUERY_STRING"])
 				data = {"id": req["id"][0], "value" : req["value"][0]}
 				msg = "error:Service(%s) or action(%s) not found..." % (service, action)
@@ -121,12 +122,12 @@ def GWSGIHandler(environ, response):
 			file_name = os.path.join(os.path.join(os.path.expanduser(html_dir), environ["PATH_INFO"][1:]))
 			ext = fname = ""
 			(fname, ext) = os.path.splitext(file_name)
-			print("GWSGIHandler:%s(%s)" % (fname,ext))
+			gwss.logger.debug("GWSGIHandler:%s(%s)" % (fname,ext))
 			# Directories -> files.py
 			if os.path.isfile("%s.py" % fname[:-1]):
 				(module, action) = os.path.split(environ["PATH_INFO"][1:])
 				module = module.replace("/",".")
-				print("GWSGIHandler:DIR:module=%s action=%s" % (module, action))
+				gwss.logger.debug("GWSGIHandler:DIR:module=%s action=%s" % (module, action))
 				if not action:
 					exec("from %s import index" % (module))
 					exec("msg = index(gwss, environ, response)")
@@ -142,7 +143,7 @@ def GWSGIHandler(environ, response):
 					(module, action) = os.path.split(environ["PATH_INFO"][1:])
 					(action,ext) = os.path.splitext(action)
 					module = module.replace("/",".")
-					print("GWSGIHandler:PY:module=%s action=%s" % (module, action))
+					gwss.logger.debug("GWSGIHandler:PY:module=%s action=%s" % (module, action))
 					if not module:
 						exec("from %s import index" % (action))
 						exec("msg = index(gwss, environ, response)")
@@ -166,7 +167,7 @@ def GWSGIHandler(environ, response):
 					response(status, response_headers)
 			else:
 				# No static file, no python module...
-				print("GWSGIHandler:%s Not found"% (file_name))
+				gwss.logger.debug("GWSGIHandler:%s Not found"% (file_name))
 				msg = status = "404 Not found"
 				response_headers = [("Content-type", "text/text"), ("Content-Length", str(len(msg)))]
 				response(status, response_headers)
@@ -195,21 +196,25 @@ if __name__ == "__main__":
 	sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "services"))
 	sys.path.insert(0, html_dir)
 
-	##FORMAT = "%(asctime)-15s %(clientip)s %(user)-8s %(message)s"
-	##logging.basicConfig(format=FORMAT)
-	#d = {"client": "127.0.0.1", "user": "root"}
-	#logging.info("gwss: %s", "Starting...", extra=d)
-	#logging.info("gwss: %s", "Starting...")
-	#logging.info("gwss: %s", __file__)
+	hostname = "gwss.modulix.net"
+	logger = logging.getLogger("gwss")
+	logger.setLevel(logging.DEBUG)
+	handler = logging.handlers.SysLogHandler(address = '/dev/log')
+	#log_format = logging.Formatter('%(asctime)s %(levelname)s ' + hostname + ' gwss[%(process)d]: %(name)s %(message)s')
+	log_format = logging.Formatter('%(levelname)s %(name)s[%(process)d]:%(asctime)s %(message)s')
+	handler.setFormatter(log_format)
+	logger.addHandler(handler)
+	logger.info("gwss: %s", "Starting...")
+	logger.debug("gwss: %s", __file__)
 
-	gwss = WebSocketServer()
+	gwss = WebSocketServer(logger)
 	gwss.start()
-	print("gwss:WebSocket Server running at http://%s:%s/" % (server, port))
+	logger.info("gwss:WebSocket Server running at http://%s:%s/" % (server, port))
 	gevent.signal(signal.SIGQUIT, gevent.kill)
 	pool = Pool(max_clients)
 	gwsgi = WSGIServer(("0.0.0.0", 8888), GWSGIHandler, spawn=pool, handler_class=WebSocketHandler)
 	gwsgi.serve_forever()
-	print("gwss:WebSocket Server stopped.")
+	logger.info("gwss:WebSocket Server stopped.")
 	gwss.stop()
 	gwss.join()
 	del gwsgi

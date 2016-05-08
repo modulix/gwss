@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import print_function
 from threading import Thread
 
 class WebSocketWorker(Thread):
@@ -18,6 +17,6 @@ class WebSocketWorker(Thread):
 	def run(self):
 		exec("from services import %s" % self.service.name)
 		exec("%s.event(self.gwss, self.service, self.client, self.event)" % (self.service.name))
-		#print("w", end="")
+		#gwss.logger.debug("w", end="")
 	#def __del__(self):
-		#print("WebSocketWorker dead")
+		#gwss.logger.debug("WebSocketWorker dead")

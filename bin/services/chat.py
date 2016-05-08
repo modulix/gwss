@@ -7,7 +7,7 @@ def chat(service, gwss):
 	This service broadcast all received messages to all connected clients
 	event -> worker -> send_all (same message)
 	"""
-	print("%s:%s" % (service.name, "Init/setup"))
+	gwss.logger.debug("%s:%s" % (service.name, "Init/setup"))
 	# Persistent variables of the service:
 	service.last = datetime.datetime.now()
 	# Enable "timer" event to send time evry minutes
@@ -17,7 +17,7 @@ def receive(gwss, service, action, client, data):
 	"""
 	This function is executed each time somebody send a message
 	"""
-	print("%s:%s:%s:%s:%s" % (service.name, action, id(client),data["id"],data["value"]))
+	gwss.logger.debug("%s:%s:%s:%s:%s" % (service.name, action, id(client),data["id"],data["value"]))
 	message = "%s:%s:error:unhandled message" % (service,action)
 	if action == "unsubscribe":
 		message = ""
@@ -36,14 +36,14 @@ def receive(gwss, service, action, client, data):
 		service.track[id(client)]['username'] = data["value"]
 
 	if message:
-		print("%s:%s:%s" % (service.name, action, message))
+		gwss.logger.debug("%s:%s:%s" % (service.name, action, message))
 		service.send_all(message)
 
 def event(gwss, service, client, event):
 	"""
 	This function is executed each time there is a new "event"
 	"""
-	print("%s:%s" % ("chat", event))
+	gwss.logger.debug("%s:%s" % ("chat", event))
 	msg = "%s:%s:error:unhandled event" % (service,event)
 	if event == "add_client":
 		# Nothing to do...
@@ -58,7 +58,7 @@ def event(gwss, service, client, event):
 		msg = '{"service": "chat", "action": "set", "data":{"id":"messages","value": "Bye client:%s"}}' % id(client)
 
 	if msg:
-		print("%s:%s:%s" % ("chat", event, msg))
+		gwss.logger.debug("%s:%s:%s" % ("chat", event, msg))
 		service.send_all(msg)
 
 def api(gwss, service, action, data):

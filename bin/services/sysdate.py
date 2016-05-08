@@ -4,13 +4,13 @@ def sysdate(service, gwss):
 	"""
 	This service broadcast locale datetime
 	"""
-	print("%s:%s" % (service.name, "Init/setup"))
+	gwss.logger.debug("%s:%s" % (service.name, "Init/setup"))
 	service.heartbeat = 1
 
 def receive(gwss, service, action, client, data):
 	"""
 	"""
-	print("%s:%s(%s)" % (service.name, id(client), data))
+	gwss.logger.debug("%s:%s(%s)" % (service.name, id(client), data))
 	service.send_all(data)
 
 def event(gwss, service, client, event):
@@ -18,7 +18,7 @@ def event(gwss, service, client, event):
 	This is a broadcast worker :
 	1 worker -> all connected clients
 	"""
-	#print("%s:%s" % ("sysdate", event))
+	#gwss.logger.debug("%s:%s" % ("sysdate", event))
 	msg = '{"service": "sysdate", "action": "set", "data":{"id":"gwss_time","value": "%s"}}' % datetime.datetime.now().strftime("%x %X")
 	service.send_all(msg)
 
