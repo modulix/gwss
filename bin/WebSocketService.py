@@ -138,7 +138,7 @@ class WebSocketService(Thread):
     def del_group_client(self, group, client):
         for grp in self.groups:
             if grp["name"] == group:
-                if (id(client) in grp["clients"]:
+                if (id(client) in grp["clients"]):
                     grp["clients"].remove(id(client))
                     self.events.append({"client" : client, "event": "del_group_client", "client": id(client)})
 
