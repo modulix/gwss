@@ -4,6 +4,10 @@
 
 gwss is WebSocket Server
 
+## Demo
+
+Have a look on usage exemples on : http://gwss.modulix.net
+
 ## Install
 
 ### Prerequisites
@@ -41,10 +45,6 @@ $ pip install pygal-maps-world
 ```bash
 $ pip install CouchDB
 ```
-
-### Demo
-
-Have a look on : http://gwss.modulix.net
 
 ### Download
 

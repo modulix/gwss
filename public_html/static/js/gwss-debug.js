@@ -6,7 +6,7 @@
 */
 
 // Default values, could be overwritten in html file
-var gwss_host = 'gwss.modulix.net';
+var gwss_host = 'localhost';
 var gwss_port = 80;
 var gwss_retry = 10;
 var gwss_debug = false;
