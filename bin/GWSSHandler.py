@@ -10,22 +10,13 @@ from threading import Thread
 #class GWSSHandler(Thread):
 class GWSSHandler():
     def __init__(self, gwss, environ, ws):
-        gwss.logger.debug("gwss:GWSSHandler(%s) Init begin" % id(self))
+        gwss.logger.debug("GWSSHandler(%s):init" % id(self))
         #super(GWSSHandler, self).__init__()
         self.gwss = gwss
         self.ws = ws
         self.environ = environ
         self.ip = ""
         self.listen = True
-    def send(self,msg):
-        try:
-            self.ws.send(msg)
-        except:
-            self.listen = False
-            pass
-    def run(self):
-        self.gwss.logger.debug("gwss:GWSSHandler(%s) running..." % id(self))
-        self.gwss.add_client(self)
         self.ip = ""
         try:
             self.ip = self.environ["HTTP_X_REAL_IP"]
@@ -39,6 +30,16 @@ class GWSSHandler():
                 self.ip = "127.0.0.1"
                 pass
                 #sys.exc_clear()
+        self.gwss.logger.debug("GWSSHandler(%s):init:%s" % (id(self), self.ip))
+    def send(self,msg):
+        try:
+            self.ws.send(msg)
+        except:
+            self.listen = False
+            pass
+    def run(self):
+        self.gwss.logger.debug("GWSSHandler(%s) running..." % id(self))
+        self.gwss.add_client(self)
         while self.listen:
             try:
                 message = self.ws.receive()
@@ -48,10 +49,10 @@ class GWSSHandler():
                 pass
                 sys.exc_clear()
             if message is None:
-                self.gwss.logger.debug("gwss:Socket closed {}".format(datetime.now().strftime("%H:%M:%S %f")))
+                self.gwss.logger.debug("GWSSHandler:Socket closed {}".format(datetime.now().strftime("%H:%M:%S %f")))
                 self.listen = False
             else:
-                self.gwss.logger.debug("gwss:GWSSHandler(%s):receive:%s" % (id(self),message))
+                self.gwss.logger.debug("GWSSHandler(%s):receive:%s" % (id(self),message))
                 service = action = data = ""
                 try:
                     msg = json.loads(message)
@@ -59,12 +60,12 @@ class GWSSHandler():
                     action = msg["action"]
                     data = msg["data"]
                 except:
-                    self.gwss.logger.debug("gwss:GWSSHandler(%s):error not valid JSON msg:%s" % (id(self),message))
+                    self.gwss.logger.debug("GWSSHandler(%s):error not valid JSON msg:%s" % (id(self),message))
                     sys.exc_clear()
                 for svc in self.gwss.services:
                     if service == svc.name:
                         svc.receive(action, self, data)
-        self.gwss.logger.debug("gwss:GWSSHandler(%s) stopping..." % id(self))
+        self.gwss.logger.debug("GWSSHandler(%s) stopping..." % id(self))
         self.gwss.del_client(self)
     def __del__(self):
-        self.gwss.logger.debug("gwss:GWSSHandler(%d) dead" % id(self))
+        self.gwss.logger.debug("GWSSHandler(%d) dead" % id(self))

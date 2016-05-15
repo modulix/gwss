@@ -22,7 +22,7 @@ class GWSSWorker(Thread):
             exec("from services import %s" % self.service.name)
             exec("%s.action(self.gwss, self.service, self.action, self.client, self.data)" % (self.service.name))
         except:
-            #pass
+            pass
             sys.exc_clear()
     #def __del__(self):
         #gwss.logger.debug("GWSSWorker dead")

@@ -54,19 +54,8 @@ def action(gwss, service, action, client, data):
     # Total of clients connected to this server
     if action == "add_client":
         gwss.logger.debug("%s:%s:%s:%s" % (service.name, action, id(client), service.track[id(client)]))
-        try:
-            geo = geolite2.lookup(service.track[id(client)]['ip'])
-        except:
-            service.track[id(client)]['country'] = "N/A"
-            geo = False
-        if geo:
-            try:
-                service.stat2[geo.country.lower()] += 1
-            except:
-                service.stat2[geo.country.lower()] = 1
-                service.track[id(client)]['country'] = geo.country.lower()
-        else:
-            service.track[id(client)]['country'] = "N/A"
+        geo = geolite2.lookup(service.track[id(client)]['ip'])
+        service.stat2[geo.country.lower()] += 1
     if action == "del_client":
         # have no more info !!!
         #state = service.track[id(client)]['country']
@@ -142,7 +131,8 @@ def stat1(gwss,service,client):
     return(base64.b64encode(bar_chart.render()))
 
 def stat2(gwss,service,client):
-    gwss.logger.debug("%s:%s%s" % (service.name,"stat2",service.stat2))
+    gwss.logger.debug("%s:%s" % (service.name,"stat2"))
+    bar_chart = pygal.StackedBar()
     worldmap_chart = pygal.maps.world.World()
     worldmap_chart.title = 'Clients countries'
     worldmap_chart.add('gwss', service.stat2)
