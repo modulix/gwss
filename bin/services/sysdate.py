@@ -4,23 +4,20 @@ def sysdate(service, gwss):
     """
     This service broadcast locale datetime
     """
-    gwss.logger.debug("%s:%s" % (service.name, "Init/setup"))
+    gwss.logger.debug("%s:%s" % (service.name, "init/setup"))
     service.heartbeat = 1
 
-def receive(gwss, service, action, client, data):
+def action(gwss, service, action, client, data):
     """
-    """
-    gwss.logger.debug("%s:%s(%s)" % (service.name, id(client), data))
-    service.send_all(data)
-
-def event(gwss, service, client, event):
-    """
-    This is a broadcast worker :
+    This is a broadcast timer only worker :
     1 worker -> all connected clients
     """
-    #gwss.logger.debug("%s:%s" % ("sysdate", event))
-    msg = '{"service": "sysdate", "action": "set", "data":{"id":"gwss_time","value": "%s"}}' % datetime.datetime.now().strftime("%x %X")
-    service.send_all(msg)
+    # Other events are ignored...
+    if action == "timer":
+        if len(service.clients):
+            gwss.logger.debug("%s:%s:%s:%s" % (service.name, action, id(client), data))
+            message = '{"service": "sysdate", "action": "set", "data":{"id":"gwss_time","value": "%s"}}' % datetime.datetime.now().strftime("%x %X")
+            service.send_all(message)
 
 def api(gwss, service, action, data):
     """
@@ -29,12 +26,12 @@ def api(gwss, service, action, data):
     # Subscribtion
     if action == "subscribe":
         data = {"service": "sysdate", "action": "subscribe", "data": data}
-        msg = json.dumps(data)
-        service.send_all(msg)
+        message = json.dumps(data)
+        service.send_all(message)
 
     if action == "get":
         id = data["id"]
         value = data["value"]
         data = {"service": "echo", "action": "set", "data": {"id": id, "value": value}}
-        service.send_all(msg)
+        service.send_all(message)
 

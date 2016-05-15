@@ -79,7 +79,8 @@
 		$(".service").each(function() {
 			if (this.checked)
 				{
-				gwss_subscription(gwss, this.value, true, "gwss_" + this.value);
+				//gwss_subscription(gwss, this.value, true, "gwss_" + this.value);
+				gwss_subscription(gwss, this.value, true, '{"id": "gwss_' + this.value + '", "value": "' + this.id + '"}');
 				}
 			});
 		}
@@ -140,22 +141,20 @@ function gwss_subscription(ws, service, onoff, data)
         {
         if (gwss_debug)
             $debug.prepend('<li class="label-success">Websocket:Subscribe service ' + service + " " + data);
-        ws.send('{"service":"' + service + '", "action":"subscribe", "data":"' + data + '"}');
+        ws.send('{"service":"' + service + '", "action":"subscribe", "data":' + data + '}');
         }
     else
         {
         if (gwss_debug)
             $debug.prepend('<li class="label-warning">Websocket:Unsubscribe service ' + service + " " + data);
-        ws.send('{"service":"' + service + '", "action":"unsubscribe", "data":"' + data + '"}');
+        ws.send('{"service":"' + service + '", "action":"unsubscribe", "data":' + data + '}');
         }
     return(false);
     }
 
-
-	// Let's play !
 	$(document).ready(function() {
 		// Server and port where gwss is running
-		gwss_host = 'gwss.modulix.net';
+		gwss_host = "gwss.modulix.net";
 		gwss_port = 80;
 		// Seconds to wait before retry to open a closed socket
 		gwss_retry = 10;
@@ -198,13 +197,13 @@ function gwss_subscription(ws, service, onoff, data)
 			The connection is permanent and in case of close or failure this page will automaticaly try to reconnect every 10 seconds (depending on gwss_retry value). Have a try to close the websocket and wait to see automatic reconnection. To avoid this feature because of timeout, the server send also a ping each minute if no message is exchanged.
 	  </p>
     <h2>WebSocket Services</h2>
-    <h3><input class="service" onclick="gwss_subscription(gwss, 'sysdate', this.checked, 'gwss_time');" type="checkbox" value="sysdate"> </input>sysdate service</h3>
+    <h3><input class="service" onclick="gwss_subscription(gwss, 'sysdate', this.checked, JSON.stringify({'id': 'gwss_time', 'value': 'utc'}));" type="checkbox" value="sysdate"> </input>sysdate service</h3>
 	  <p>
 	  Server datetime : <span id="gwss_time" style="font-weight: bold;"></span>
 	  </p>
     <h3>chat service</h3>
 	<p>There is a dedicated page for websocket <a href="chat.html">chat service</a>.</p>
-    <h3><input class="service" onclick="gwss_subscription(gwss, 'stats', this.checked, 'gwss_stats');" type="checkbox" value="stats" checked> </input>stats service</h3>
+    <h3><input class="service" onclick="gwss_subscription(gwss, 'stats', this.checked, JSON.stringify({'id': 'gwss_time', 'value': 'utc'}));" type="checkbox" value="stats" checked> </input>stats service</h3>
 		<p>
 			Clients connected to this server : <b><span id="gwss_clients_count">?</span></b>
 			<br />
@@ -245,12 +244,12 @@ function gwss_subscription(ws, service, onoff, data)
 				</tr>
 		</table>
 <!--
-    <h3><input class="service" onclick="gwss_subscription(gwss, 'logger', this.checked, 'gwss_logger');" type="checkbox" value="logger" checked> </input>logger service</h3>
+    <h3><input class="service" onclick="gwss_subscription(gwss, 'logger', this.checked, {"id": "gwss_logger", "value": "utc"});" type="checkbox" value="logger" checked> </input>logger service</h3>
 	<div class="hscroll20" width="25hw">
 	<ul id="gwss_logger"></ul>
 	</div>
 -->
-    <h3><input class="service" onclick="gwss_subscription(gwss, 'echo', this.checked, 'message');" type="checkbox" value="echo" checked> </input>echo service</h3>
+    <h3><input class="service" onclick="gwss_subscription(gwss, 'echo', this.checked, JSON.stringify({'id': 'message', 'value': 'utc'}));" type="checkbox" value="echo" checked> </input>echo service</h3>
 	<p>
 	<div id="messages"></div>
 	To broadcast informations to all clients viewing this page, you can also use a simple REST API :

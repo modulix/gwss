@@ -10,15 +10,19 @@ def chat(service, gwss):
     gwss.logger.debug("%s:%s" % (service.name, "Init/setup"))
     # Persistent variables of the service:
     service.last = datetime.datetime.now()
-    # Enable "timer" event to send time evry minutes
+
+    # Enable "timer" event to send time evry heartbeat seconds
     service.heartbeat = 60
 	
-def receive(gwss, service, action, client, data):
+def action(gwss, service, action, client, data):
     """
+    This function is executed each time there is a new "action"
     This function is executed each time somebody send a message
     """
-    gwss.logger.debug("%s:%s:%s:%s:%s" % (service.name, action, id(client),data["id"],data["value"]))
-    message = "%s:%s:error:unhandled message" % (service,action)
+    gwss.logger.debug("%s:%s:%s:%s" % (service.name, action, id(client),data))
+    message = "%s:%s:error:unhandled action" % (service.name,action)
+    if action == "timer":
+        message = ""
     if action == "unsubscribe":
         message = ""
     if action == "subscribe":
@@ -34,32 +38,21 @@ def receive(gwss, service, action, client, data):
     if action == "user":
         message = '{"service": "chat", "action": "set", "data": {"id":"messages", "value":"%s is known as %s"}}' % (id(client), data["value"])
         service.track[id(client)]['username'] = data["value"]
+    if action == "add_client":
+        # Nothing to do...
+        message = ""
+    if action == "timer":
+        message = '{"service": "chat", "action": "set", "data":{"id":"messages","value": "%s"}}' % datetime.datetime.now()
+    if action == "del_client":
+        message = '{"service": "chat", "action": "set", "data":{"id":"messages","value": "Bye client:%s"}}' % id(client)
+    if action == "add_svc_client":
+        message = '{"service": "chat", "action": "set", "data":{"id":"messages","value": "Welcome %s !"}}' % id(client)
+    if action == "del_svc_client":
+        message = '{"service": "chat", "action": "set", "data":{"id":"messages","value": "Bye client:%s"}}' % id(client)
 
     if message:
-        gwss.logger.debug("%s:%s:%s" % (service.name, action, message))
+        gwss.logger.debug("%s:%s:%s:%s" % (service.name, action, id(client),message))
         service.send_all(message)
-
-def event(gwss, service, client, event):
-    """
-    This function is executed each time there is a new "event"
-    """
-    gwss.logger.debug("%s:%s" % ("chat", event))
-    msg = "%s:%s:error:unhandled event" % (service,event)
-    if event == "add_client":
-        # Nothing to do...
-        msg = ""
-    if event == "timer":
-        msg = '{"service": "chat", "action": "set", "data":{"id":"messages","value": "%s"}}' % datetime.datetime.now()
-    if event == "del_client":
-        msg = '{"service": "chat", "action": "set", "data":{"id":"messages","value": "Bye client:%s"}}' % id(client)
-    if event == "add_svc_client":
-        msg = '{"service": "chat", "action": "set", "data":{"id":"messages","value": "Welcome %s !"}}' % id(client)
-    if event == "del_svc_client":
-        msg = '{"service": "chat", "action": "set", "data":{"id":"messages","value": "Bye client:%s"}}' % id(client)
-
-    if msg:
-        gwss.logger.debug("%s:%s:%s" % ("chat", event, msg))
-        service.send_all(msg)
 
 def api(gwss, service, action, data):
     """

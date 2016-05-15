@@ -41,12 +41,12 @@ function openSocket()
 			else {
 				var json = JSON.parse(ev.data);
 				// Virtual service used to give 'internal' messages
-				if (json.service == "gwss") {
+				//if (json.service == "gwss") {
 					if (json.action == "subscribe") {
 						// Client unique identifier
 						gwss_id = json.data.value;
 						}
-					}
+					//}
 				gwss_receive(json);
 				}
 			}

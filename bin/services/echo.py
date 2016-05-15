@@ -11,45 +11,42 @@ def echo(service, gwss):
     # Persistent variables of the service:
     service.last = datetime.datetime.now()
 
-def receive(gwss, service, action, client, data):
+def action(gwss, service, action, client, data):
     """
-    This function broadcast evry received message to all service clients
+    This function broadcast messages to all service clients
     """
-    gwss.logger.debug("%s:%s:receive(%s)" % (service.name, id(client), data))
-    service.send_all(data)
+    gwss.logger.debug("%s:%s:%s:%s" % (service.name, action, id(client), data))
+    message = "%s:%s:error:unhandled action" % (service.name,action)
 
-def event(gwss, service, client, event):
-    """
-    This function broadcast "event" messages to all service clients
-    """
-    gwss.logger.debug("%s:event:%s" % (service.name, event))
-    msg = "%s:%s:error:unhandled event" % (service,event)
-    if event == "add_client" or event == "del_client":
+    if action == "set":
+        message = '{"service": "echo", "action": "set", "data": %s}' % data
+    if action == "add_client" or action == "del_client":
         # Nothing to do...
-        msg = ""
-    if event == "add_svc_client":
-        msg = '{"service": "echo", "action": "set", "data":{"id":"gwss_message","value": "New client:%s"}}' % id(client)
-    if event == "del_svc_client":
-        msg = '{"service": "echo", "action": "set", "data":{"id":"gwss_message","value": "Bye client:%s"}}' % id(client)
+        message = ""
+    if action == "add_svc_client":
+        message = '{"service": "echo", "action": "set", "data":{"id":"gwss_message","value": "New client:%s"}}' % id(client)
+    if action == "del_svc_client":
+        message = '{"service": "echo", "action": "set", "data":{"id":"gwss_message","value": "Bye client:%s"}}' % id(client)
 
-    if msg:
-        service.send_all(msg)
+    if message:
+        gwss.logger.debug("%s:%s:%s:%s" % (service.name, action, id(client), message))
+        service.send_all(message)
 
 def api(gwss, service, action, data):
     """
     This function permit this service management
     """
     gwss.logger.debug("%s:api:%s:%s" % (service.name, action, data))
-    msg = "error:unhandled event"
+    message = "error:unhandled action"
     if action == "set":
         data = {"service": "echo", "action": "set", "data": data}
-        msg = json.dumps(data)
-        gwss.logger.debug("%s:api:set:send_all:%s" % (service.name, msg))
-        service.send_all(msg)
+        message = json.dumps(data)
+        gwss.logger.debug("%s:api:set:send_all:%s" % (service.name, message))
+        service.send_all(message)
     if action == "get":
         ident = data["id"]
         value = data["value"]
-        gwss.logger.debug("%s:api:get:send_all:%s" % (service.name, msg))
+        gwss.logger.debug("%s:api:get:send_all:%s" % (service.name, message))
         data = {"service": "echo", "action": "set", "data": {"id": ident, "value": value}}
-        service.send_all(msg)
+        service.send_all(message)
 

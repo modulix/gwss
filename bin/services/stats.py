@@ -15,22 +15,15 @@ def stats(service, gwss):
     This service also send some stats periodicaly (timer)
     timer ----> all_clients
     """
-    gwss.logger.debug("%s:%s" % (service.name, "Init/setup"))
+    gwss.logger.debug("%s:init/setup" % (service.name,))
     # Create service persistent var
     service.heartbeat = 5
     service.stat1 = []
     for idx in range(120):
         service.stat1.append(0)
     service.stat2 = {}
-    service.timer_count = 0
 
-def receive(gwss, service, action, client, data):
-    """
-    """
-    gwss.logger.debug("%s:%s(%s)" % (service.name, id(client), data))
-    service.send_all(data)
-
-def event(gwss, service, client, event):
+def action(gwss, service, action, client, data):
     """
     This is event broadcasting worker:
     evt -> service:send_all()
@@ -38,22 +31,12 @@ def event(gwss, service, client, event):
         add_client
         del_client
         timer
-        client_start_work
-        client_progress
-        client_end_work
-        client_event
     """
-    gwss.logger.debug("%s:event:%s" % (service.name, event))
-    message = "error:stats:event:%s" % event
-    if event == "timer":
-        #There are some stats we send evry 5 sec
-        if service.timer_count < (5 * (1/service.heartbeat)):
-            service.timer_count += 1
-            message = ""
-        else:
-            service.timer_count = 0
-            message = '{"service": "stats", "action": "set", "data":{"id":"gwss_stat1","type": "base64", "value": "%s"}}' % stat1(gwss,service,client)
-    if event == "svc_add_client":
+    gwss.logger.debug("%s:%s:%s:%s" % (service.name, action, id(client), data))
+    message = "error:stats:action:%s" % action
+    if action == "timer":
+        message = '{"service": "stats", "action": "set", "data":{"id":"gwss_stat1","type": "base64", "value": "%s"}}' % stat1(gwss,service,client)
+    if action == "svc_add_client":
         # On new subscription we send some the stats (multiple sends) but only to this client
         message = '{"service": "stats", "action": "set", "data":{"id":"gwss_lst_services","value": %s}}' % list_all_services(gwss)
         service.send_client(client, message)
@@ -69,8 +52,13 @@ def event(gwss, service, client, event):
 
     # On other events, we broadcast messages to all subscribed clients
     # Total of clients connected to this server
-    if event == "add_client":
-        geo = geolite2.lookup(service.track[id(client)]['ip'])
+    if action == "add_client":
+        gwss.logger.debug("%s:%s:%s:%s" % (service.name, action, id(client), service.track[id(client)]))
+        try:
+            geo = geolite2.lookup(service.track[id(client)]['ip'])
+        except:
+            service.track[id(client)]['country'] = "N/A"
+            geo = False
         if geo:
             try:
                 service.stat2[geo.country.lower()] += 1
@@ -79,31 +67,37 @@ def event(gwss, service, client, event):
                 service.track[id(client)]['country'] = geo.country.lower()
         else:
             service.track[id(client)]['country'] = "N/A"
-    if event == "del_client":
-        state = service.track[id(client)]['country']
-        service.stat2[state] -= 1
+    if action == "del_client":
+        # have no more info !!!
+        #state = service.track[id(client)]['country']
+        try:
+            service.stat2['fr'] -= 1
+        except:
+            pass
+        message = ""
 
-    if event == "add_client" or event == "del_client":
+    if action == "add_client" or action == "del_client":
         message = '{"service": "stats", "action": "set", "data":{"id":"gwss_lst_clients","value": %s}}' % list_all_clients(gwss)
         service.send_all(message)
         message = '{"service": "stats", "action": "set", "data":{"id":"gwss_stat2","type": "attr", "name": "src", "value": "%s"}}' % stat2(gwss,service,client)
         service.send_all(message)
         message = '{"service": "stats", "action": "set", "data":{"id":"gwss_clients_count","value": "%s"}}' % len(gwss.clients)
     # Total of clients connected to this service
-    if event == "add_svc_client" or event == "del_svc_client":
+    if action == "add_svc_client" or action == "del_svc_client":
         message = '{"service": "stats", "action": "set", "data":{"id":"gwss_stats_clients_count","value": "%s"}}' % len(service.clients)
     # All running services list
-    if event == "update_services":
+    if action == "update_services":
         message = '{"service": "stats", "action": "set", "data":{"id":"gwss_lst_services","value": %s}}' % list_all_services(gwss)
 
-    if event == "client_start":
+    if action == "client_start":
         message = '{"service": "stats", "action": "set", "data":{"id":"gwss_client_start","value": "%s"}}' % datetime.datetime.now().strftime("%x %X")
-    if event == "client_end":
+    if action == "client_end":
         message = '{"service": "stats", "action": "set", "data":{"id":"gwss_client_end","value": "%s"}}' % datetime.datetime.now().strftime("%x %X")
-    if event == "client_event":
+    if action == "client_event":
         message = '{"service": "stats", "action": "set", "data":{"id":"gwss_client_event","value": "%s"}}' % datetime.datetime.now().strftime("%x %X")
 
     if message:
+        gwss.logger.debug("%s:%s:%s:%.250s" % (service.name, action, id(client), message))
         service.send_all(message)
 
 def api(gwss, service, action, data):
@@ -114,7 +108,7 @@ def api(gwss, service, action, data):
         data = {"service": "stats", "action": "set", "data": {"id": id, "value": value}}
         #msg = json.dumps(data)
         #gwss.send_all(msg)
-        service.events.append({"event": id, "client": service.clients, "data": {"id": id, "value": value}})
+        service.events.append({"action": id, "client": service.clients, "data": {"id": id, "value": value}})
     if action == "get":
         id = data["id"]
         value = data["value"]
@@ -139,7 +133,7 @@ def list_all_clients(gwss):
     return(lst_clients)
 
 def stat1(gwss,service,client):
-    #gwss.logger.debug("%s:%s" % (service.name,"stat1"))
+    gwss.logger.debug("%s:%s" % (service.name,"stat1"))
     bar_chart = pygal.StackedBar()
     if len(service.stat1) >= 120:
         del service.stat1[0]

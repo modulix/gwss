@@ -1,6 +1,5 @@
 # gwss
-(Copyleft) 2016 - AWI : Aquitaine Webmédia Indépendant
-
+(Copyleft) 2016 - AWI : [Aquitaine Webmédia Indépendant](http://www.aquitaine-webmedia-independant.com/)
 
 gwss is WebSocket Server
 
@@ -18,7 +17,7 @@ Used python libs:
 
 #### core
 
-* optparse
+* argparse
 * gevent
 * requests
 
@@ -29,7 +28,7 @@ $ pip install requests
 ```
 
 #### services
-The <b>./service</b> directory contain some examples, to be able run them, you need also to download this modules :
+The <b>./service</b> directory contain some examples, to be able run them, you need also to download this modules [facultative]. You can skip if you inteend to create your own services :
 * stats
 	* [geoIP]()
 	* [pygal](http://www.pygal.org/en/latest/index.html) (with [pygal_maps_world](http://www.pygal.org/en/latest/documentation/types/maps/pygal_maps_world.html))
@@ -56,8 +55,8 @@ $ git clone https://github.com/modulix/gwss.git
 
 ### Setup
 First you need to choice the front end you want to use:
-* nginx
-* apache2 (>= 2.4.5) wit [mod_proxy_wstunnel](https://httpd.apache.org/docs/2.4/mod/mod_proxy_wstunnel.html)
+* nginx (>= 1.35)
+* apache2 (>= 2.4.5) with [mod_proxy_wstunnel](https://httpd.apache.org/docs/2.4/mod/mod_proxy_wstunnel.html)
 * standalone (do not use in production)
 
 #### Front Office
@@ -76,11 +75,15 @@ Move <b>public_html</b> files in the directory served by your front server, shou
 ### Start & stop
 #### System V
 ```bash
+# cp gwss/etc/systemd/gwss.service /usr/lib/systemd/system/
+
 # /etc/init.d/gwss start
 # /etc/init.d/gwss stop
 ```
 #### systemd
 ```bash
+# cp gwss/etc/init.d/gwss /etc/init.d/
+
 # systemctl start gwss
 # systemctl stop gwss
 ```

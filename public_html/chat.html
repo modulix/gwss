@@ -34,29 +34,30 @@
 		// This server send JSON messages with "service", "action" and "data" elements
 		// {"service": "chat", "action": "set", "data": { ... }}
 		//
-
-		if (json.service == "gwss" && json.action == "subscribe") {
+		//if (json.service == "gwss" && json.action == "subscribe") {
+		if (json.action == "subscribe") {
 			// This message contain our unique client id
 			$('#' + json.data.id).text(json.data.value);
+			$('#username').text(json.data.value);
+			$('#username').editable({
+				type: 'text',
+				pk: 1,
+				url: '/api/chat/set',
+				title: 'Username',
+				validate: function(value) {
+					if($.trim(value) == '') {
+						return 'This field is required';
+						}
+					else {
+						gwss.send('{"service":"chat", "action":"user", "data": {"id":"gwss_id", "value":"' + $.trim(value) + '"}}');
+						}
+					},
+				send: 'never'
+				});
 			}
 		if (json.service == "chat" && json.action == "set") {
 			if (json.data.id == "gwss_id") {
 				$('#username').text(json.data.value);
-				$('#username').editable({
-					type: 'text',
-					pk: 1,
-					url: '/api/chat/set',
-					title: 'Username',
-					validate: function(value) {
-						if($.trim(value) == '') {
-							return 'This field is required';
-							}
-						else {
-							gwss.send('{"service":"chat", "action":"user", "data": {"id":"gwss_id", "value":"' + $.trim(value) + '"}}');
-							}
-						},
-					send: 'never'
-					});
 				}
 			else {
 				//$('#' + json.data.id).prepend('<li>' + json.data.value + '</li>');
@@ -76,7 +77,7 @@
 
 	$(document).ready(function() {
 		// Server and port where gwss is running
-		gwss_host = 'gwss.modulix.net';
+		gwss_host = "gwss.modulix.net";
 		gwss_port = 80;
 		// Seconds to wait before retry to open a closed socket
 		gwss_retry = 10;
