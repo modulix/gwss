@@ -22,6 +22,7 @@ Used python libs:
 * requests
 
 ```bash
+$ pip install argparse
 $ pip install gevent
 $ pip install gevent-websocket
 $ pip install requests
