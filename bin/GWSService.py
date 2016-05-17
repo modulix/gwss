@@ -108,15 +108,15 @@ class GWSService(Thread):
 
 	# Create a new group
 	def add_group(self, group, client):
-		groups.append({"name": group, "owner": client, "clients": [ id(client) ]})
-		self.events.append({"client" : client, "action": "add_group", "data": {"id": group, "value": group}})
+		self.groups.append({"name": group, "owner": client, "clients": [ id(client) ]})
+		#self.events.append({"client" : client, "action": "add_group", "data": {"id": group, "value": group}})
 
 	# Remove a group (need to be owner)
 	def del_group(self, group, client):
 		for grp in self.groups:
 			if grp["name"] == group and grp["owner"] == id(client):
 				del grp
-				self.events.append({"client" : client, "action": "del_group", "data": {"id": group, "value": group}})
+				#self.events.append({"client" : client, "action": "del_group", "data": {"id": group, "value": group}})
 
 	# Add a client to a group
 	def add_group_client(self, group, client):

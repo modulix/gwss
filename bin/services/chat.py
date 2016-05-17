@@ -12,7 +12,7 @@ def chat(service, gwss):
 	service.last = datetime.datetime.now()
 
 	# Enable "timer" event to send time evry heartbeat seconds
-	service.heartbeat = 300
+	service.heartbeat = 120
 	
 def action(gwss, service, action, client, data):
 	"""
