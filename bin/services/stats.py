@@ -17,7 +17,7 @@ def stats(service, gwss):
 	"""
 	gwss.logger.debug("%s:init/setup" % (service.name,))
 	# Create service persistent var
-	service.heartbeat = 5
+	service.heartbeat = 2
 	service.stat1 = []
 	for idx in range(120):
 		service.stat1.append(0)

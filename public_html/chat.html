@@ -21,7 +21,6 @@
 		$state.attr("class", 'label label-success');
 		$state.text('Connected');
 		gwss_subscribe(gwss, "chat", JSON.stringify({"id": "gwss_id", "value": gwss_id}));
-		gwss_subscribe(gwss, "stats", JSON.stringify({"id": "gwss_stats", "value": gwss_id}));
 		}
 	
 
@@ -33,7 +32,6 @@
 		// This server send JSON messages with "service", "action" and "data" elements
 		// {"service": "chat", "action": "set", "data": { ... }}
 		//
-		//if (json.service == "gwss" && json.action == "subscribe") {
 		if (json.action == "subscribe") {
 			// This message contain our unique client id
 			$('#' + json.data.id).text(json.data.value);
@@ -54,21 +52,53 @@
 				send: 'never'
 				});
 			}
-		if (json.service == "chat" && json.action == "set") {
+		if (json.action == "set") {
 			if (json.data.id == "gwss_id") {
 				$('#username').text(json.data.value);
 				}
-			else {
+			if (json.data.id == "messages") {
 				//$('#' + json.data.id).prepend('<li>' + json.data.value + '</li>');
 				$('#' + json.data.id).append('<li>' + json.data.value + '</li>');
 				$("#msg_container").prop({ scrollTop: $("#msg_container").prop("scrollHeight") });
 				}
-			}
-		if (json.service == "chat" && json.data.id == "gwss_chat_clients_count") {
-			$('#gwss_chat_clients_count').text(json.data.value);
-			}
-		if (json.service == "stats" && json.data.id == "gwss_stats_clients_count") {
-			$('#gwss_chat_clients_count').text(json.data.value);
+			if (json.data.id == "gwss_chat_clients_count") {
+				$('#gwss_chat_clients_count').text(json.data.value);
+				}
+			if (json.data.id == "gwss_chat_lst_clients") {
+				$('#' + json.data.id).children().remove();
+				for(idx in json.data.value) {
+					if (json.data.value[idx] == gwss_id) {
+						ligne = '<li class="list-group-item list-group-item-success"><span class="badge">Me</span>' + json.data.value[idx] + '</li>';
+						}
+					else {
+						ligne = '<li class="list-group-item list-group-item-info">' + json.data.value[idx] + '</li>';
+						}
+					$('#' + json.data.id).append(ligne);
+					}
+				}
+			if (json.data.id == "gwss_chat_lst_groups") {
+				$('#' + json.data.id).children().remove();
+				$('#' + json.data.id).append('<li role="presentation"><a href="#">Server</a></li>');
+				for(idx in json.data.value) {
+					$('#' + json.data.id).append('<li role="presentation"><a href="#">' + json.data.value[idx] + '</a></li>');
+					}
+				$('#' + json.data.id).append('<li role="presentation"><a href="#"><span id="new_group" data-type="text" data-title="New room name">New room</span></a></li>');
+				$('#new_group').editable({
+					type: 'text',
+					pk: 1,
+					url: '/api/chat/set',
+					title: 'New room name',
+					validate: function(value) {
+						if($.trim(value) == '') {
+							return 'This field is required';
+							}
+						else {
+							gwss.send('{"service":"chat", "action":"add_group", "data": {"id":"new_group", "value":"' + $.trim(value) + '"}}');
+							}
+						},
+					send: 'never'
+					});
+				}
 			}
 		}
   	function gwss_send()
@@ -109,26 +139,22 @@
 	<br />
 	Clients connected to this service : <b><span id="gwss_chat_clients_count">?</span></b>
 	</p>
+<!--
 <div class="btn-group" role="group">
   <button type="button" class="btn btn-default">Main</button>
   <button type="button" class="btn btn-default">#admin</button>
   <button type="button" class="btn btn-default">#bordeaux</button>
   <button type="button" class="btn btn-default">#paris</button>
 </div>
-<ul class="nav nav-tabs">
-  <li role="presentation" class="active"><a href="#">Home</a></li>
-  <li role="presentation"><a href="#">Profile</a></li>
-  <li role="presentation"><a href="#">Messages</a></li>
+-->
+<ul class="nav nav-tabs" id="gwss_chat_lst_groups">
+  <li role="presentation" class="active"><a href="#">Server</a></li>
 </ul>
   <div class="row">
 	<div class="col-sm-2">
 
-<ul class="list-group">
-  <li class="list-group-item list-group-item-success"><span class="badge">1</span>Main room<span class="label label-default">Default</span></li>
-  <li class="list-group-item list-group-item-danger"><span class="badge">1</span>#admin</li>
-  <li class="list-group-item list-group-item-info"><span class="badge">12</span>#bordeaux</li>
-  <li class="list-group-item"><span class="badge">1</span>#paris</li>
-  <li class="list-group-item list-group-item-warning"><span class="badge">+</span>[new]</li>
+<ul class="list-group" id="gwss_chat_lst_clients">
+  <li class="list-group-item list-group-item-warning">User list</li>
 </ul>
 	</div>
 		<div class="col-sm-10">
