@@ -47,18 +47,28 @@
 						}
 					else {
 						gwss.send('{"service":"chat", "action":"user", "data": {"id":"gwss_id", "value":"' + $.trim(value) + '"}}');
+						$("#message").focus();
 						}
 					},
 				send: 'never'
 				});
+			}
+		if (json.action == "user") {
+			$('#username').text(json.data.value);
 			}
 		if (json.action == "set") {
 			if (json.data.id == "gwss_id") {
 				$('#username').text(json.data.value);
 				}
 			if (json.data.id == "messages") {
-				//$('#' + json.data.id).prepend('<li>' + json.data.value + '</li>');
-				$('#' + json.data.id).append('<li>' + json.data.value + '</li>');
+				if (typeof json.data.attr !== 'undefined') {
+                    if (json.data.attr == "class") {
+						$('#' + json.data.id).append('<li class="' + json.data.class + '">' + json.data.value + '</li>');
+						}
+					}
+				else {
+					$('#' + json.data.id).append('<li>' + json.data.value + '</li>');
+					}
 				$("#msg_container").prop({ scrollTop: $("#msg_container").prop("scrollHeight") });
 				}
 			if (json.data.id == "gwss_chat_clients_count") {
@@ -67,7 +77,7 @@
 			if (json.data.id == "gwss_chat_lst_clients") {
 				$('#' + json.data.id).children().remove();
 				for(idx in json.data.value) {
-					if (json.data.value[idx] == gwss_id) {
+					if (json.data.value[idx].substring(0, gwss_id.toString().length) == gwss_id) {
 						ligne = '<li class="list-group-item list-group-item-success"><span class="badge">Me</span>' + json.data.value[idx] + '</li>';
 						}
 					else {
@@ -78,9 +88,19 @@
 				}
 			if (json.data.id == "gwss_chat_lst_groups") {
 				$('#' + json.data.id).children().remove();
-				$('#' + json.data.id).append('<li role="presentation"><a href="#">Server</a></li>');
+				if (json.data.value.length) {
+					$('#' + json.data.id).append('<li role="presentation"><a href="#">Server</a></li>');
+					}
+				else {
+					$('#' + json.data.id).append('<li role="presentation" class="active"><a href="#">Server</a></li>');
+					}
 				for(idx in json.data.value) {
-					$('#' + json.data.id).append('<li role="presentation"><a href="#">' + json.data.value[idx] + '</a></li>');
+					if ($.inArray(json.data.value[idx], gwss_groups) < 0) {
+						$('#' + json.data.id).append('<li role="presentation"><a href="#">' + json.data.value[idx] + '</a></li>');
+						}
+					else {
+						$('#' + json.data.id).append('<li role="presentation" class="active"><a href="#">' + json.data.value[idx] + '</a></li>');
+						}
 					}
 				$('#' + json.data.id).append('<li role="presentation"><a href="#"><span id="new_group" data-type="text" data-title="New room name">New room</span></a></li>');
 				$('#new_group').editable({
@@ -94,6 +114,8 @@
 							}
 						else {
 							gwss.send('{"service":"chat", "action":"add_group", "data": {"id":"new_group", "value":"' + $.trim(value) + '"}}');
+							gwss_groups.push(new_group);
+							$("#message").focus();
 							}
 						},
 					send: 'never'
@@ -110,7 +132,6 @@
 			$("#message").val("");
 			}
 		}
-
 	$(document).ready(function() {
 		// Server and port where gwss is running
 		gwss_host = "gwss.modulix.net";
@@ -122,6 +143,7 @@
 		// Setup editable mode
 		$.fn.editable.defaults.mode = 'inline';
 		$.fn.editable.defaults.ajaxOptions = {type: "GET"};
+		$("#message").focus();
 		});
 	</script>
 
@@ -132,12 +154,10 @@
 <div class="container-fluid">
 	<h1>gwss is WebSocket Server</h1>
 	<p>
-		This is a free and public IRC using <a href="/">gwss</a> services.
+		This is a free and public IRC using <a href="/">gwss</a> services, just for demonstration purpose.
 	<br />
 	<span id="gwss_status" class="label label-warning">Not connected</span>
-	UID :<b><span id="gwss_id"><img src="/static/img/loading.gif" alt="loading..."/></span></b>
-	<br />
-	Clients connected to this service : <b><span id="gwss_chat_clients_count">?</span></b>
+	UID :<b><span id="gwss_id"><img src="/static/img/loading.gif" alt="loading..."/></span></b> (<b><span id="gwss_chat_clients_count">?</span></b> users)
 	</p>
 <!--
 <div class="btn-group" role="group">

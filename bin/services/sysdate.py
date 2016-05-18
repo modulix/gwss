@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-import datetime
+from datetime import datetime
 def sysdate(service, gwss):
 	"""
-	This service broadcast locale datetime
+	This service broadcast system datetime
 	"""
 	gwss.logger.debug("%s:%s" % (service.name, "init/setup"))
 	service.heartbeat = 1
@@ -10,7 +10,7 @@ def sysdate(service, gwss):
 def action(gwss, service, action, client, data):
 	"""
 	This is a broadcast timer only worker :
-	1 worker -> all connected clients
+	1 worker -> send_all service subscribed clients
 	"""
 	if action == "subscribe":
 		service.add_client(client)
@@ -18,8 +18,8 @@ def action(gwss, service, action, client, data):
 		service.del_client(client)
 	if action == "timer":
 		if len(service.clients):
-			gwss.logger.debug("%s:%s:%s:%s" % (service.name, action, id(client), data))
-			message = '{"service": "sysdate", "action": "set", "data":{"id":"gwss_time","value": "%s"}}' % datetime.datetime.now().strftime("%x %X")
+			#gwss.logger.debug("%s:%s:%s:%s" % (service.name, action, id(client), data))
+			message = '{"service": "sysdate", "action": "set", "data":{"id":"gwss_time","value": "%s"}}' % datetime.now().strftime("%x %X")
 			service.send_all(message)
 	# Other events are ignored...
 

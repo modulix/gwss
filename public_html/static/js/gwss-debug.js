@@ -11,6 +11,7 @@ var gwss_port = 80;
 var gwss_retry = 10;
 var gwss_debug = false;
 var gwss_id = 0;
+var gwss_groups = [];
 
 function openSocket()
 	{
