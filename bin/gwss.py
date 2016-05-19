@@ -40,6 +40,7 @@ def gwss_dispatch(environ, response):
 		GWSSHandler:WebSocket (permanent connection)
 		GWSGIHandler:WSGI (include /api requests)
 	"""
+	global gwss
 	url = environ["PATH_INFO"]
 	ws = False
 	try:
@@ -49,23 +50,40 @@ def gwss_dispatch(environ, response):
 		pass
 	# Is this a WebSocket request (we need to maintain this connection)
 	if ws:
-		gwss.logger.debug("gwss:dispatch:%s: opening WebSocket..." % (url))
+		gwss.logger.debug("gwss:dispatch:%s:WebSocket..." % (url))
 		# So this can NOT be run in a separate thread...
 		wshandler = GWSSHandler(gwss, environ, ws)
 		gevent.spawn(wshandler.run())
 		return(None)
 	# So, this is a WSGI request (not a WebSocket)
 	else:
-		gwss.logger.debug("gwss:dispatch:%s: opening WSGI..." % (url))
+		gwss.logger.debug("gwss:dispatch:%s:WSGI..." % (url))
 		wsgihandler = GWSGIHandler(gwss, environ, response)
 		msg = wsgihandler.run()
 		return([msg])
 
 def main(args):
+	global gwss
+	logger = logging.getLogger()
+	logger.setLevel(logging.DEBUG)
+	if args.syslog:
+		handler = logging.handlers.SysLogHandler(address = '/dev/log')
+		log_format = logging.Formatter('%(levelname)s %(name)s[%(process)d]:%(asctime)s %(message)s')
+	else:
+		handler = logging.FileHandler(args.logfile)
+		log_format = logging.Formatter('%(asctime)s ' + socket.getfqdn() + ' %(levelname)s %(name)s[%(process)d]: %(message)s')
+	handler.setFormatter(log_format)
+	handler.setLevel(logging.DEBUG)
+	logger.addHandler(handler)
+	logger.info("gwss:Starting...")
+	logger.debug("gwss:%s" % args)
+	gwss = GWSServer(logger)
 
-	sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "services"))
+	#sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "services"))
+	sys.path.insert(0, config.services_dir)
 	sys.path.insert(0, config.html_dir)
 
+	# FS socket && Network socket
 	try:
 		os.mkdir(os.path.dirname(args.pidfile))
 	except:
@@ -86,11 +104,14 @@ def main(args):
 	listener.listen(5)
 
 	# Starting WebSocket Server/Services/Workers
+	gwss.config = config
 	gwss.start()
 
 	# Starting network listener
 	pool = Pool(config.max_clients)
 	gevent.signal(signal.SIGQUIT, gevent.kill)
+	gevent.signal(signal.SIGHUP, gwss.sighup)
+
 	gwss.logger.info("gwss:WebSocket Server is listening at http://%s:%s/" % (config.server, config.port))
 	gwsgi = WSGIServer((config.server, config.port), gwss_dispatch, spawn=pool, handler_class=WebSocketHandler)
 	gwsgi.serve_forever()
@@ -106,7 +127,6 @@ if __name__ == "__main__":
 	"""
 	This is a the main of this multi-threaded daemon
 	"""
-	# FS socket && Network socket
 	argparser = argparse.ArgumentParser(prog='gwss')
 	argparser.add_argument("--daemon", action="store_true", help="Run in background")
 	argparser.add_argument("--syslog", action="store_true", help="Use syslog for logging")
@@ -116,21 +136,6 @@ if __name__ == "__main__":
 	argparser.add_argument("--pidfile", default=config.pidfile, dest="pidfile", action="store", help="File where to write PID")
 	argparser.add_argument("--sockname", default=config.sockname, dest="sockname", action="store", help="Create socket file")
 	args = argparser.parse_args()
-
-	logger = logging.getLogger()
-	logger.setLevel(logging.DEBUG)
-	if args.syslog:
-		handler = logging.handlers.SysLogHandler(address = '/dev/log')
-		log_format = logging.Formatter('%(levelname)s %(name)s[%(process)d]:%(asctime)s %(message)s')
-	else:
-		handler = logging.FileHandler(args.logfile)
-		log_format = logging.Formatter('%(asctime)s ' + socket.getfqdn() + ' %(levelname)s %(name)s[%(process)d]: %(message)s')
-	handler.setFormatter(log_format)
-	handler.setLevel(logging.DEBUG)
-	logger.addHandler(handler)
-	logger.info("gwss:Starting...")
-	logger.debug("gwss:%s" % args)
-	gwss = GWSServer(logger)
 	if args.daemon:
 		pid = os.fork()
 		if pid != 0:

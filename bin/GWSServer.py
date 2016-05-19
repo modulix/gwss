@@ -27,10 +27,28 @@ class GWSServer(Thread):
 		self.daemon = True
 		self.track = {}
 		#sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "services"))
+	def sighup(self):
+		self.logger.debug("GWSServer receive SIGHUP signal...(%s)" % self.config)
+		for service in self.services:
+			self.logger.debug("Service stopping : %s" % service.name)
+			service.stop()
+			service.join()
+		for file_name in os.listdir(self.config.services_dir):
+			(fln, fle) = os.path.splitext(file_name)
+			if os.path.isfile(os.path.join(svc_dir, file_name)) and fle == ".py" and fln != "__init__":
+				self.logger.debug("Service loading : %s" % file_name)
+				service = GWSService(self, fln, self.track)
+				self.services.append(service)
+		self.logger.debug("GWSServer:Trying to run all %d found services" % len(self.services))
+		for service in self.services:
+			self.logger.debug("Service running : %s" % service.name)
+			service.start()
+		self.logger.debug("GWSServer ready again")
+
 	def run(self):
 		self.logger.debug("GWSServer run...")
 		# This server start a service thread for each .py file found in ./services subdirectory
-		self.logger.debug("GWSServer starting all ./services :")
+		self.logger.debug("GWSServer starting all services in %s :" % self.config.services_dir)
 		svc_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "services")
 		for file_name in os.listdir(svc_dir):
 			(fln, fle) = os.path.splitext(file_name)
