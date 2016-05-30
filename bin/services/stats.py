@@ -112,7 +112,7 @@ def api(gwss, service, action, data):
 		data = {"service": "stats", "action": "set", "data": {"id": id, "value": value}}
 		#msg = json.dumps(data)
 		#gwss.send_all(msg)
-		service.events.append({"action": id, "client": service.clients, "data": {"id": id, "value": value}})
+		service.add_event({"action": id, "client": service.clients, "data": {"id": id, "value": value}})
 	if action == "get":
 		id = data["id"]
 		value = data["value"]

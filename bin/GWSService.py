@@ -6,6 +6,7 @@ import time
 from threading import Thread
 import gevent
 from datetime import datetime
+from Queue import Queue
 
 from GWSSWorker import GWSSWorker
 
@@ -23,11 +24,11 @@ class GWSService(Thread):
 		self.clients = []
 		self.groups = []
 		self.workers = []
-		self.events = []
 		self.heartbeat = 0
 		self.usages = []
 		self.daemon = True
 		self.listen = True
+		self.queue = Queue()
 		# Get service configuration from ./service/service.py file
 		exec("from services import %s" % self.name)
 		exec("%s.%s(self, gwss)" % (self.name, self.name))
@@ -38,36 +39,36 @@ class GWSService(Thread):
 		if self.heartbeat > 1:
 			self.gwss.logger.debug("GWSService(%s):timer" % self.name)
 		gevent.sleep(self.heartbeat)
-		self.events.append({"client" : self.clients, "action": "timer", "data": {"id": "UTC", "value": "now()"}})
+		self.add_event({"client" : self.clients, "action": "timer", "data": {"id": "UTC", "value": "now()"}})
 
+	# Adding new event in the queue
+	def add_event(self, event):
+		self.queue.put(event)
 	# Start service working
 	def run(self):
 		self.gwss.logger.debug("GWSService(%s):run" % self.name)
 		if self.heartbeat:
 			gevent.spawn(self.timer)
 		while self.listen:
-			for evt in self.events:
-				self.worker = GWSSWorker(self.gwss, self, evt["client"], evt["action"], evt["data"])
-				self.worker.start()
-				#self.worker.join()
-				if evt["action"] == "timer":
-					gevent.spawn(self.timer)
-				self.events.remove(evt)
-				gevent.sleep(0)
-			gevent.sleep(0)
+			evt = self.queue.get()
+			self.worker = GWSSWorker(self.gwss, self, evt["client"], evt["action"], evt["data"])
+			self.worker.start()
+			#self.worker.join()
+			if evt["action"] == "timer":
+				gevent.spawn(self.timer)
 		self.gwss.logger.debug("GWSService(%s) stopping..." % self.name)
 
 	# Adding a new client to this service
 	def add_client(self, client):
 		self.gwss.logger.debug("GWSService(%s):add_client(%s)"% (self.name, id(client)))
 		self.clients.append(client)
-		self.events.append({"client" : client, "action": "add_svc_client", "data": {"id": id(client), "value": self.name}})
+		self.add_event({"client" : client, "action": "add_svc_client", "data": {"id": id(client), "value": self.name}})
 		# for each new client shall we launch a worker ?!
 		"""
 			if "sync" in self.usages:
 				self.gwss.logger.debug("GWSService(%s):sync (1 -> 1)" % self.name)
 				self.worker = GWSService(self.gwss, self, client, "add_client")
-				#self.events.append({"client" : client, "action": "client_start"})
+				#self.add_event({"client" : client, "action": "client_start"})
 				self.worker.start()
 				self.worker.join()
 			if "thread" in self.usages:
@@ -82,7 +83,7 @@ class GWSService(Thread):
 		self.gwss.logger.debug("GWSService(%s):del_client %s" % (self.name, id(client)))
 		if client in self.clients:
 			self.clients.remove(client)
-			self.events.append({"client" : client, "action": "del_svc_client", "data": {"id": id(client), "value": self.name}})
+			self.add_event({"client" : client, "action": "del_svc_client", "data": {"id": id(client), "value": self.name}})
 
 	# Receive a new message on the WebSocket
 	def receive(self, action, client, data):
@@ -109,21 +110,21 @@ class GWSService(Thread):
 	# Create a new group
 	def add_group(self, group, client):
 		self.groups.append({"name": group, "owner": client, "clients": [ id(client) ]})
-		#self.events.append({"client" : client, "action": "add_group", "data": {"id": group, "value": group}})
+		#self.add_event({"client" : client, "action": "add_group", "data": {"id": group, "value": group}})
 
 	# Remove a group (need to be owner)
 	def del_group(self, group, client):
 		for grp in self.groups:
 			if grp["name"] == group and grp["owner"] == id(client):
 				del grp
-				#self.events.append({"client" : client, "action": "del_group", "data": {"id": group, "value": group}})
+				#self.add_event({"client" : client, "action": "del_group", "data": {"id": group, "value": group}})
 
 	# Add a client to a group
 	def add_group_client(self, group, client):
 		for grp in self.groups:
 			if grp["name"] == group:
 				grp["clients"].append(id(client))
-				self.events.append({"client" : client, "action": "add_group_client", "data": {"id": group, "value": group}})
+				self.add_event({"client" : client, "action": "add_group_client", "data": {"id": group, "value": group}})
 
 	# Remove a client from a group
 	def del_group_client(self, group, client):
@@ -131,7 +132,7 @@ class GWSService(Thread):
 			if grp["name"] == group:
 				if (id(client) in grp["clients"]):
 					grp["clients"].remove(id(client))
-					self.events.append({"client" : client, "action": "del_group_client", "data": {"id": group, "value": group}})
+					self.add_event({"client" : client, "action": "del_group_client", "data": {"id": group, "value": group}})
 
 	# Send a message by WebSocket to a group of clients
 	def send_group(self, group, msg):

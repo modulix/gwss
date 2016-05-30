@@ -96,14 +96,14 @@ class GWSServer(Thread):
 		self.logger.debug("GWSServer:ID:%s" % id(client))
 		client.send(msg)
 		for service in self.services:
-			service.events.append({"client" : client, "action": "add_client", "data": {"id": "gwss_id", "value": id(client)}})
+			service.add_event({"client" : client, "action": "add_client", "data": {"id": "gwss_id", "value": id(client)}})
 	def del_client(self, client):
 		self.logger.debug("GWSServer:del_client %s" % id(client))
 		self.clients.remove(client)
 		for service in self.services:
 			if client in service.clients:
 				service.del_client(client)
-				service.events.append({"client" : client, "action": "del_client", "data": {"id": "gwss_id", "value": id(client)}})
+				service.add_event({"client" : client, "action": "del_client", "data": {"id": "gwss_id", "value": id(client)}})
 		# Time for services to process del_client event (some of them use track data)
 		gevent.sleep(1)
 		del self.track[id(client)]
