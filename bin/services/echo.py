@@ -19,8 +19,10 @@ def action(gwss, service, action, client, data):
 	message = "%s:%s:error:unhandled action" % (service.name,action)
 	if action == "subscribe":
 		service.add_client(client)
+		message = ""
 	if action == "unsubscribe":
 		service.del_client(client)
+		message = ""
 	if action == "set":
 		message = '{"service": "echo", "action": "set", "data": %s}' % data
 	if action == "add_client" or action == "del_client":

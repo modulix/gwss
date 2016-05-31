@@ -12,6 +12,10 @@ def action(gwss, service, action, client, data):
 	This is a broadcast timer only worker :
 	1 worker -> send_all service subscribed clients
 	"""
+	if action == "add_svc_client":
+		message = ""
+	if action == "del_svc_client":
+		message = ""
 	if action == "subscribe":
 		service.add_client(client)
 	if action == "unsubscribe":

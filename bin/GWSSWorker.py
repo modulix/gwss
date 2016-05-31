@@ -17,12 +17,12 @@ class GWSSWorker(Thread):
 		self.action = action
 		self.data = data
 	def run(self):
-		self.gwss.logger.debug("%s:worker:%s" % (self.service.name, self.action))
+		#self.gwss.logger.debug("%s:worker:%s" % (self.service.name, self.action))
 		try:
 			exec("from services import %s" % self.service.name)
 			exec("%s.action(self.gwss, self.service, self.action, self.client, self.data)" % (self.service.name))
 		except:
 			pass
-			sys.exc_clear()
+			#sys.exc_clear()
 	#def __del__(self):
 		#gwss.logger.debug("GWSSWorker dead")

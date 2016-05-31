@@ -3,12 +3,22 @@ import sys
 import json
 import os
 import time
-from threading import Thread
-import gevent
 from datetime import datetime
+from threading import Thread
 from Queue import Queue
-
 from GWSSWorker import GWSSWorker
+
+# Used if service need to send messages at regular intervals
+class GWSServiceTimer(Thread):
+	def __init__(self, heartbeat, queue):
+		super(GWSServiceTimer, self).__init__()
+		self.daemon = True
+		self.queue = queue
+		self.heartbeat = heartbeat
+	def run(self):
+		# Derive is around 0.002 (should be tuned)
+		time.sleep(self.heartbeat-0.002)
+		self.queue.put({"client" : "", "action": "timer", "data": {"id": "UTC", "value": "now"}})
 
 class GWSService(Thread):
 	"""
@@ -30,32 +40,33 @@ class GWSService(Thread):
 		self.listen = True
 		self.queue = Queue()
 		# Get service configuration from ./service/service.py file
+		self.gwss.logger.debug("GWSService(%s):init:import" % self.name)
 		exec("from services import %s" % self.name)
+		self.gwss.logger.debug("GWSService(%s):init:exec" % self.name)
 		exec("%s.%s(self, gwss)" % (self.name, self.name))
 		self.gwss.logger.debug("GWSService(%s):init:end" % self.name)
 
-	# Used if service need to send messages at regular intervals
-	def timer(self):
-		if self.heartbeat > 1:
-			self.gwss.logger.debug("GWSService(%s):timer" % self.name)
-		gevent.sleep(self.heartbeat)
-		self.add_event({"client" : self.clients, "action": "timer", "data": {"id": "UTC", "value": "now()"}})
-
 	# Adding new event in the queue
 	def add_event(self, event):
+		self.gwss.logger.debug("GWSService(%s):add_event:%s" % (self.name, event))
 		self.queue.put(event)
-	# Start service working
+
+	# Start service work
 	def run(self):
 		self.gwss.logger.debug("GWSService(%s):run" % self.name)
 		if self.heartbeat:
-			gevent.spawn(self.timer)
+			self.gwss.logger.debug("GWSService(%s):starting timer %d" % (self.name, self.heartbeat))
+			self.timer = GWSServiceTimer(self.heartbeat, self.queue)
+			self.timer.start()
 		while self.listen:
 			evt = self.queue.get()
+			#self.gwss.logger.debug("GWSService(%s):%s..." % (self.name, evt))
+			if evt["action"] == "timer":
+				self.timer = GWSServiceTimer(self.heartbeat, self.queue)
+				self.timer.start()
 			self.worker = GWSSWorker(self.gwss, self, evt["client"], evt["action"], evt["data"])
 			self.worker.start()
 			#self.worker.join()
-			if evt["action"] == "timer":
-				gevent.spawn(self.timer)
 		self.gwss.logger.debug("GWSService(%s) stopping..." % self.name)
 
 	# Adding a new client to this service
@@ -103,7 +114,7 @@ class GWSService(Thread):
 
 	# Send a message by WebSocket to all clients
 	def send_all(self, msg):
-		self.gwss.logger.debug("GWSService(%s):send_all:%.255s" % (self.name, msg))
+		#self.gwss.logger.debug("GWSService(%s):send_all:%.255s" % (self.name, msg))
 		for client in self.clients:
 			self.send_client(client, msg)
 

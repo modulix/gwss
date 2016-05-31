@@ -32,14 +32,16 @@ def action(gwss, service, action, client, data):
 		del_client
 		timer
 	"""
-	gwss.logger.debug("%s:%s:%s:%s" % (service.name, action, id(client), data))
+	#gwss.logger.debug("%s:%s:%s:%s" % (service.name, action, id(client), data))
 	message = "error:stats:action:%s" % action
 	if action == "timer":
 		message = '{"service": "stats", "action": "set", "data":{"id":"gwss_stat1","type": "base64", "value": "%s"}}' % stat1(gwss,service,client)
 	if action == "subscribe":
 		service.add_client(client)
+		message = ""
 	if action == "unsubscribe":
 		service.del_client(client)
+		message = ""
 	if action == "svc_add_client":
 		# On new subscription we send some the stats (multiple sends) but only to this client
 		message = '{"service": "stats", "action": "set", "data":{"id":"gwss_lst_services","value": %s}}' % list_all_services(gwss)
@@ -48,7 +50,7 @@ def action(gwss, service, action, client, data):
 		service.send_client(client, message)
 		message = '{"service": "stats", "action": "set", "data":{"id":"gwss_clients_count","value": "%s"}}' % len(gwss.clients)
 		service.send_client(client, message)
-		message = '{"service": "stats", "action": "set", "data":{"id":"gwss_stat1","type": "base64", "value": "%s"}}' % stat1(gwss,service,client)
+		message = '{"service": "stats", "action": "set", "data":{"id":"gwss_stat2", "type": "attr", "name": "src", "value": "%s"}}' % stat2(gwss,service,client)
 		service.send_client(client, message)
 		# At last, the message with new clients count is sended to all subscribed clients (including this new one)
 		# (same as others events)
@@ -101,7 +103,7 @@ def action(gwss, service, action, client, data):
 		message = '{"service": "stats", "action": "set", "data":{"id":"gwss_client_event","value": "%s"}}' % datetime.datetime.now().strftime("%x %X")
 
 	if message:
-		gwss.logger.debug("%s:%s:%s:%.250s" % (service.name, action, id(client), message))
+		#gwss.logger.debug("%s:%s:%s:%.250s" % (service.name, action, id(client), message))
 		service.send_all(message)
 
 def api(gwss, service, action, data):
