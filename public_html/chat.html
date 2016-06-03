@@ -57,9 +57,6 @@
 			$('#username').text(json.data.value);
 			}
 		if (json.action == "set") {
-			if (json.data.id == "gwss_id") {
-				$('#username').text(json.data.value);
-				}
 			if (json.data.id == "messages") {
 				if (typeof json.data.attr !== 'undefined') {
                     if (json.data.attr == "class") {
@@ -77,11 +74,17 @@
 			if (json.data.id == "gwss_chat_lst_clients") {
 				$('#' + json.data.id).children().remove();
 				for(idx in json.data.value) {
+					// id:name
+					var display_name = json.data.value[idx].split(":")[1];
+					if (!display_name)
+						{
+						display_name = json.data.value[idx];
+						}
 					if (json.data.value[idx].substring(0, gwss_id.toString().length) == gwss_id) {
-						ligne = '<li class="list-group-item list-group-item-success"><span class="badge">Me</span>' + json.data.value[idx] + '</li>';
+						ligne = '<li class="list-group-item list-group-item-success"><span class="badge">Me</span>' + display_name + '</li>';
 						}
 					else {
-						ligne = '<li class="list-group-item list-group-item-info">' + json.data.value[idx] + '</li>';
+						ligne = '<li class="list-group-item list-group-item-info">' + display_name + '</li>';
 						}
 					$('#' + json.data.id).append(ligne);
 					}
@@ -96,10 +99,10 @@
 					}
 				for(idx in json.data.value) {
 					if ($.inArray(json.data.value[idx], gwss_groups) < 0) {
-						$('#' + json.data.id).append('<li role="presentation"><a href="#">' + json.data.value[idx] + '</a></li>');
+						$('#' + json.data.id).append('<li role="presentation" onclick="gwss_join_group(\'' + json.data.value[idx] + '\');return(false);"><a href="#">' + json.data.value[idx] + '</a></li>');
 						}
 					else {
-						$('#' + json.data.id).append('<li role="presentation" class="active"><a href="#">' + json.data.value[idx] + '</a></li>');
+						$('#' + json.data.id).append('<li role="presentation" class="active" onclick="gwss_leave_group(\'' + json.data.value[idx] + '\');return(false);"><a href="#">' + json.data.value[idx] + '</a></li>');
 						}
 					}
 				$('#' + json.data.id).append('<li role="presentation"><a href="#"><span id="new_group" data-type="text" data-title="New room name">New room</span></a></li>');
@@ -114,7 +117,6 @@
 							}
 						else {
 							gwss.send('{"service":"chat", "action":"add_group", "data": {"id":"new_group", "value":"' + $.trim(value) + '"}}');
-							gwss_groups.push(new_group);
 							$("#message").focus();
 							}
 						},
@@ -122,6 +124,16 @@
 					});
 				}
 			}
+		}
+  	function gwss_join_group(grp_name)
+		{
+		gwss.send('{"service":"chat", "action":"add_group_client", "data": {"id":"id", "value":"' + gwss_id + '"}}');
+		gwss_groups.push(grp_name);
+		}
+  	function gwss_leave_group(grp_name)
+		{
+		gwss.send('{"service":"chat", "action":"del_group_client", "data": {"id":"id", "value":"' + gwss_id + '"}}');
+		gwss_groups.splice(gwss_groups.indexOf(grp_name),1);
 		}
   	function gwss_send()
 		{
@@ -178,7 +190,7 @@
 </ul>
 	</div>
 		<div class="col-sm-10">
-			<div id="msg_container" style="overflow-y: scroll; height:400px;">
+			<div id="msg_container" style="overflow-y: scroll; height:420px;">
 				<div id="messages"></div>
 			</div>
 		</div>
@@ -193,12 +205,12 @@
 				<input id="message" type="text" class="form-control">
 				<span class="input-group-addon">:-)</span>
 				<div class="input-group-btn">
-				<button class="btn btn-default btn-primary" onclick="gwss_send();return(false);"type="submit">Send</button>
+				<button class="btn btn-default btn-primary" onclick="gwss_send();return(false);" type="submit">Send</button>
 				</div>
 			</div>
 		</div>
 		</form>
-		<iframe name="api_result" height="40" width="100%">Return code from API...</iframe>
+		<iframe name="api_result" class="hidden" height="40" width="100%">Return code from API...</iframe>
 	</footer>
 </body>
 </html>
