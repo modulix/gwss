@@ -74,16 +74,28 @@ class GWSGIHandler():
 			(fname, ext) = os.path.splitext(file_name)
 			self.gwss.logger.debug("GWSGIHandler:%s(%s)" % (fname,ext))
 			# Directories -> files.py
-			if os.path.isfile("%s.py" % fname[:-1]):
-				(module, action) = os.path.split(self.environ["PATH_INFO"][1:])
-				module = module.replace("/",".")
-				self.gwss.logger.debug("GWSGIHandler:DIR:module=%s action=%s" % (module, action))
-				if not action:
-					exec("from %s import index" % (module))
-					exec("msg = index(self.gwss, self.environ, self.response)")
+			module = action = ""
+			if fname[-1] == "/":
+				self.gwss.logger.debug("GWSGIHandler:%s:trying %s or %s" % (self.environ["PATH_INFO"],"%s.py" % fname[:-1],"%s.py" % os.path.dirname(fname[:-1])))
+				if os.path.isfile("%s.py" % fname[:-1]):
+					self.gwss.logger.debug("GWSGIHandler:%s:->%s(3)" % (self.environ["PATH_INFO"],"%s.py" % fname[:-1]))
+					(module, action) = os.path.split(self.environ["PATH_INFO"][1:])
+				elif os.path.isfile("%s.py" % os.path.dirname(fname[:-1])):
+					self.gwss.logger.debug("GWSGIHandler:%s:->%s(2)" % (self.environ["PATH_INFO"],"%s.py" % os.path.dirname(fname[:-1])))
+					(module, action) = os.path.split(self.environ["PATH_INFO"][1:-1])
+				elif os.path.isfile("%s/index.py" % fname[:-1]):
+					self.gwss.logger.debug("GWSGIHandler:%s:->%s(1)" % (self.environ["PATH_INFO"],"%s/index.py" % fname[:-1]))
+					module = self.environ["PATH_INFO"][1:] + "index"
 				else:
-					exec("from %s import %s" % (module, action))
-					exec("msg = %s(self.gwss, self.environ, self.response)" % action)
+					module = ""
+			if module:
+				module = module.replace("/",".")
+				if not action:
+					action = "index"
+				self.gwss.logger.debug("GWSGIHandler:DIR:module=%s action=%s importing..." % (module, action))
+				exec("from %s import %s" % (module, action))
+				self.gwss.logger.debug("GWSGIHandler:DIR:module=%s action=%s running..." % (module, action))
+				exec("msg = %s(self.gwss, self.environ, self.response)" % action)
 				status = "200 OK"
 				response_headers = [("Content-type", "text/html"), ("Content-Length", str(len(msg)))]
 				self.response(status, response_headers)
