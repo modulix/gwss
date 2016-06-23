@@ -28,7 +28,7 @@ if sys.version_info.major == 3:
 	import urllib.parse as urlparse
 
 api_url = "/api"
-html_dir = "/usr/share/nginx/html"
+html_dir = "/home/arthur/gwss/public_html"
 
 #class GWSGIHandler(Thread):
 class GWSGIHandler():

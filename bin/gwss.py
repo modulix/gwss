@@ -44,9 +44,8 @@ def gwss_dispatch(environ, response):
 	url = environ["PATH_INFO"]
 	ws = False
 	try:
-		if environ["HTTP_CONNECTION"].lower() == "upgrade" and environ["HTTP_UPGRADE"].lower() == "websocket":
-			ws = environ["wsgi.websocket"]
-	except:
+		ws = environ["wsgi.websocket"]
+	except KeyError:
 		pass
 	# Is this a WebSocket request (we need to maintain this connection)
 	if ws:
