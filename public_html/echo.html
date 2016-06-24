@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>gwss is WebSocket Server</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<script src="/static/js/jquery.min.js"></script>
+	<script src="/static/js/echo.js"></script>
+
+<!-- ### gwss:begin -->
+	<script>
+	// GLOBAL var
+	gwss_host = "127.0.0.1";
+	gwss_port = 44400;
+	// Seconds to wait before retry to open a closed socket
+	gwss_retry = 10;
+	// Display or not debug entries by default
+	gwss_debug = true;
+	
+	var notifications = [];
+	var max_notifications = 3;
+	var gwss = openSocket(gwss_host, gwss_port);
+	var subscribe = {service:"echo",action:"subscribe",data:""};
+	gwss.onopen = function() {
+		gwss.send (JSON.stringify(subscribe))
+	};
+
+	$(document).keypress(function(ev) {
+			var o = {service:"echo",action:"echo",data:ev.key}
+			gwss.send(JSON.stringify(o))
+	})
+
+	</script>
+
+<!-- ### gwss:end -->
+
+</head>
+<body>
+    <h1>Echo service</h1>
+	<ul id="debug"></ul>
+	</div>
+  </div>
+</body>
+</html>

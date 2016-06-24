@@ -55,13 +55,12 @@ class GWSSHandler():
 				self.gwss.logger.debug("GWSSHandler(%s):receive:%s" % (id(self),message))
 				try:
 					msg = json.loads(message)
-					msg["client"] = self
+					msg["client"] = id(self)
 				except:
 					self.gwss.logger.debug("GWSSHandler(%s):error not valid JSON msg:%s" % (id(self),message))
 					sys.exc_clear()
-				for svc in self.gwss.services:
-					if msg["service"] == svc.name:
-						svc.add_event(msg)
+				if msg["service"] in self.gwss.services:
+					self.gwss.services[msg["service"]].add_event(msg)
 		self.gwss.logger.debug("GWSSHandler(%s) stopping..." % id(self))
 		self.gwss.del_client(self)
 	def __del__(self):

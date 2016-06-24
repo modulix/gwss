@@ -5,37 +5,30 @@ import os
 import time
 from datetime import datetime, timedelta
 from threading import Thread
+from multiprocessing import Pipe
+import importlib 
+import traceback
+from multiprocessing import Queue
 
 import gevent
-import json
-from GWSService import GWSService
 
 class GWSServer(Thread):
 	"""
 	This server is used to control all services
 	found in ./services/ directory
-	Also a list of all current websocked is also checked to
-	send "ping" it no activity is detceted in last 42 sec.
 	"""
 	def __init__(self, logger):
 		super(GWSServer, self).__init__()
 		logger.debug("GWSServer init...")
 		self.logger = logger
-		self.clients = []
-		self.services = []
+		self.clients = {}
+		self.services = {}
+		self.send_queue = Queue()
 		self.listen = True
 		self.daemon = True
-		self.track = {}
 		#sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "services"))
 	def sighup(self):
 		self.logger.debug("GWSServer receive SIGHUP signal...(%s)" % self.config)
-		#for service in self.services:
-		#	self.logger.debug("Service stopping : %s" % service.name)
-		#	service.stop()
-		#	service.join()
-		##reload_services_conf()
-		#for service in self.services:
-		#	service.start()
 
 	def run(self):
 		self.logger.debug("GWSServer run...")
@@ -46,58 +39,37 @@ class GWSServer(Thread):
 			(fln, fle) = os.path.splitext(file_name)
 			if os.path.isfile(os.path.join(svc_dir, file_name)) and fle == ".py" and fln != "__init__":
 				self.logger.debug("Service loading : %s" % file_name)
-				service = GWSService(self, fln, self.track)
-				self.services.append(service)
-		self.logger.debug("GWSServer:Trying to run all %d services" % len(self.services))
-		for service in self.services:
-			self.logger.debug("Service running : %s" % service.name)
-			service.start()
+		# Get service configuration from ./service/service.py file
+				try :
+					module = importlib.import_module("services."+fln)
+					self.logger.debug("Service init start : %s" % fln)
+					service = getattr(module, fln)(self.send_queue)
+					self.logger.debug("Service init end : %s" % fln)
+					self.services[fln] = service
+				except Exception as e:
+					self.logger.info("Failed to load service %s" % fln)
+					self.logger.debug(traceback.format_exc())
 		self.logger.debug("GWSServer ready")
-		# Pooling all clients to send ping message to "inactive" clients
-		while self.listen:
-			curtime = datetime.now()
-			delta = timedelta(seconds=42)
-			for client in self.clients:
-				if (curtime - self.track[id(client)]["last"]) > delta: 
-					self.ping(client)
-			# More client, less sleeping... (from 10s to 0.1s)
-			# 1->10s, 100->1s, 1000+ -> 0.1s
-			if len(self.clients):
-				time2sleep = max(0.1, min(10, (100 / len(self.clients))))
-			else:
-				time2sleep = 10
-			gevent.sleep(time2sleep)
+		# Polling all clients to send ping message
+		while True:
+			client_id,data = self.send_queue.get()
+			self.clients[client_id].send(data)
 		self.logger.debug("GWSServer exiting...")
-	def ping(self, client):
-		self.logger.debug("GWSServer send ping(%s) %s" % (id(client), client.ip))
-		sysdate = datetime.now()
-		msg = "ping %s" % sysdate.strftime("%x %X")
-		client.send(msg)
-		self.track[id(client)]["last"] = sysdate
-	def send_all(self, msg):
-		self.logger.debug("GWSServer:send_all %s" % msg)
-		for client in self.clients:
-			client.send(msg)
-			self.track[id(client)]["last"] = datetime.now()
 	def add_client(self, client):
 		self.logger.debug("GWSServer:add_client %s" % id(client))
-		self.clients.append(client)
-		self.track[id(client)] = {"last":datetime.now(), "ip": client.ip}
+		self.clients[id(client)] = client
 		# Return unique id to this client
-		msg = '{"service": "gwss", "action": "subscribe", "data": {"id":"gwss_id", "value":"%s"}}' % id(client)
+		msg = '{"service": "gwss", "action": "subscribe", "data": {"gwss_id":"%s"}}' % id(client)
 		self.logger.debug("GWSServer:ID:%s" % id(client))
 		client.send(msg)
-	def del_client(self, client):
-		self.logger.debug("GWSServer:del_client %s" % id(client))
-		self.clients.remove(client)
-		# Time for services to process del_client event (some of them use track data)
+	def del_client(self, id_client):
+		self.logger.debug("GWSServer:del_client %s" % id_client)
+		del self.clients[id_client]
 		gevent.sleep(1)
-		del self.track[id(client)]
 	def stop(self):
 		self.logger.debug("GWSServer:stop %s" % self)
 		for service in services:
 			service.stop()
-			service.join()
 			self.listen = False
 	def __del__(self):
 		self.logger.debug("GWSServer dead")

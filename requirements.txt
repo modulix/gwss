@@ -1,0 +1,9 @@
+argparse
+gevent
+gevent-websocket
+requests
+python-geoip
+python-geoip-geolite2
+pygal
+pygal-maps-world
+CouchDB

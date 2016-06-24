@@ -1,14 +1,13 @@
 #!/usr/bin/env python
+from classes.DaemonService import DaemonService
 
-class EchoService():
+class EchoService(DaemonService):
 	"""
 	This service broadcast all received messages to all connected clients
 	event -> worker -> send_all (same message)
 	"""
-	def __init__ (self,service):
-		self.service = service
 	def action_echo(self, client, data):
-		self.service.send_group('*', "display", data)
+		self.send_client(client, "display", data)
 
-def echo(service):
-	return EchoService(service)
+def echo(logger):
+	return EchoService("echo", logger)
