@@ -9,15 +9,15 @@ from datetime import datetime
 
 #class GWSSHandler(Thread):
 class GWSSHandler():
-	def __init__(self, gwss, environ, ws):
+	def __init__(self, client_service, environ, ws):
 		#gwss.logger.debug("GWSSHandler(%s):init" % id(self))
 		#super(GWSSHandler, self).__init__()
-		self.gwss = gwss
+		#self.gwss = gwss
 		self.ws = ws
 		self.environ = environ
+		self.client_service = client_service
 		self.ip = ""
 		self.listen = True
-		self.ip = ""
 		try:
 			self.ip = self.environ["HTTP_X_REAL_IP"]
 		except:
@@ -30,7 +30,7 @@ class GWSSHandler():
 				self.ip = "127.0.0.1"
 				pass
 				#sys.exc_clear()
-		self.gwss.logger.debug("GWSSHandler(%s):init:%s" % (id(self), self.ip))
+		#self.gwss.logger.debug("GWSSHandler(%s):init:%s" % (id(self), self.ip))
 	def send(self,msg):
 		try:
 			self.ws.send(msg)
@@ -38,8 +38,8 @@ class GWSSHandler():
 			self.listen = False
 			pass
 	def run(self):
-		self.gwss.logger.debug("GWSSHandler(%s) running..." % id(self))
-		self.gwss.add_client(self)
+		#self.gwss.logger.debug("GWSSHandler(%s) running..." % id(self))
+		self.client_service.add_client(self)
 		while self.listen:
 			try:
 				message = self.ws.receive()
@@ -49,19 +49,15 @@ class GWSSHandler():
 				pass
 				#sys.exc_clear()
 			if message is None:
-				self.gwss.logger.debug("GWSSHandler:Socket closed {}".format(datetime.now().strftime("%H:%M:%S %f")))
+				#self.gwss.logger.debug("GWSSHandler:Socket closed {}".format(datetime.now().strftime("%H:%M:%S %f")))
 				self.listen = False
 			else:
-				self.gwss.logger.debug("GWSSHandler(%s):receive:%s" % (id(self),message))
+				#self.gwss.logger.debug("GWSSHandler(%s):receive:%s" % (id(self),message))
 				try:
 					msg = json.loads(message)
-					msg["client"] = id(self)
 				except:
-					self.gwss.logger.debug("GWSSHandler(%s):error not valid JSON msg:%s" % (id(self),message))
+					#self.gwss.logger.debug("GWSSHandler(%s):error not valid JSON msg:%s" % (id(self),message))
 					sys.exc_clear()
-				if msg["service"] in self.gwss.services:
-					self.gwss.services[msg["service"]].add_event(msg)
-		self.gwss.logger.debug("GWSSHandler(%s) stopping..." % id(self))
-		self.gwss.del_client(self)
-	def __del__(self):
-		self.gwss.logger.debug("GWSSHandler(%d) dead" % id(self))
+				self.client_service.send_action(msg["service"], msg["action"], client=id(self), **msg["data"])
+		#self.gwss.logger.debug("GWSSHandler(%s) stopping..." % id(self))
+		self.client_service.del_client(self)

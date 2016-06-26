@@ -20,13 +20,15 @@
 	var notifications = [];
 	var max_notifications = 3;
 	var gwss = openSocket(gwss_host, gwss_port);
-	var subscribe = {service:"echo",action:"subscribe",data:""};
 	gwss.onopen = function() {
+		var subscribe = {service:"echo",action:"subscribe",data:{}};
+		gwss.send (JSON.stringify(subscribe))
+		subscribe = {service:"ping",action:"subscribe",data:{}};
 		gwss.send (JSON.stringify(subscribe))
 	};
 
 	$(document).keypress(function(ev) {
-			var o = {service:"echo",action:"echo",data:ev.key}
+		var o = {service:"echo",action:"echo",data:{key:ev.key}}
 			gwss.send(JSON.stringify(o))
 	})
 

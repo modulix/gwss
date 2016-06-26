@@ -1,13 +1,13 @@
 #!/usr/bin/env python
-from classes.DaemonService import DaemonService
+from classes.SimpleService import SimpleService
 
-class EchoService(DaemonService):
+class EchoService(SimpleService):
 	"""
 	This service broadcast all received messages to all connected clients
 	event -> worker -> send_all (same message)
 	"""
-	def action_echo(self, client, data):
-		self.send_client(client, "display", data)
+	def action_echo(self, client, key):
+		self.send_action("clients", "send_client", client=client, js_action="display", data={"key":key})
 
-def echo(logger):
-	return EchoService("echo", logger)
+def echo(send_queue):
+	return EchoService("echo", send_queue)

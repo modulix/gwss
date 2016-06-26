@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-import json
-from Groups import Groups
-
+import traceback
 class BaseService(object):
 	"""
 	Daemon mode.
@@ -13,23 +11,20 @@ class BaseService(object):
 		self.name = name
 		self.send_queue = send_queue
 		#Groups of clients (used for all client pushes)
-	def add_event(self, event):
+	def add_event(self, action, data):
 		#self.logger.debug("GWSService(%s):add_event:%s" % (self.name, event))
-		client, action, data = event["client"], event["action"], event["data"]
-		if action == "subscribe":
-			self.add_client(client)
-			return
-		elif action == "unsubscribe":
-			self.del_client(client)
-			return
 		try:
-			self.exec_action (client, action, data)
+			self.exec_action (action, data)
 			#self.logger.debug("GWSService(%s):action_complete:%s" % (self.name,action))
 		except Exception as e:
-			pass
+			print traceback.format_exc()
 			#self.logger.debug("GWSService(%s):error:%s" % (self.name,str(e)))
-	def send_client(self, client, action, data):
-		"""Sends a message by WebSocket to one client"""
-		self.send_queue.put((client,json.dumps({"service":self.name, "action": action, "data":data})))
+	def send_action(self, service, action, **kwargs):
+		"""Sends a message to the message broker"""
+		self.send_queue.put({"service":service, "action": action, "data":kwargs})
+	def action_subscribe (self, **kwargs):
+		pass
+	def action_unsubscribe (self, **kwargs):
+		pass
 
 

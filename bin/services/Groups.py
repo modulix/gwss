@@ -1,4 +1,6 @@
-class Groups ():
+from classes.SimpleService import SimpleService
+
+class Groups (SimpleService):
     """Container that consist in storing a set of tagged elements"""
     def __init__ (self, redis = None, namespace = "", *args, **kwargs):
         self._redis = redis
@@ -112,7 +114,7 @@ class Groups ():
                 return
         self._taglist.append(tag)
 
-    def tag(self, atoms, tag):
+    def action_tag(self, atoms, tag):
         if tag not in self._taglist :
             self._newTag (tag)
         newTagged = set(atoms) 
@@ -143,7 +145,7 @@ class Groups ():
             self._insertAll (s, tn|k)
             self._redrem (s, k)
 
-    def untag(self, atoms, tag):
+    def action_untag(self, atoms, tag):
         """Untag all 'keys' from 'tag'"""
         if tag == "*":
             return
@@ -174,7 +176,7 @@ class Groups ():
             self._insertAll (s, k-tn)
             self._redrem (s, k)
 
-    def delTag (self, tag):
+    def action_delTag (self, tag):
         if tag == "*":
             return
         tn = self._tagNum(tag)
@@ -187,7 +189,7 @@ class Groups ():
                 self._redisVars.add(k&(~tn))
         self._taglist[self._taglist.index(tag)] = None
 
-    def select (self, expression):
+    def action_select (self, expression):
         expression = expression.split(' ')
         incMask = [] 
         for operand in expression :

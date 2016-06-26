@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 import json
-from Groups import Groups
 from BaseService import BaseService
 from multiprocessing import Process, Pipe
+import traceback
 
 class DaemonService(BaseService):
 	"""
@@ -10,20 +10,21 @@ class DaemonService(BaseService):
 	"""
 	def __init__(self, name, send_queue):
 		super(DaemonService, self).__init__(name, send_queue)
-		self.proc = Process(target=self.listen)
+		self.proc = Process(target=self.main)
 		self.recv_proc, self.send_proc = Pipe(False)
 		self.proc.start()
 		
-	def listen (self):
-		while True:
-			client, action, data = self.recv_proc.recv()
-			try:
-				function = getattr(self, "action_" + action)
-			except Exception as e:
-				#self.logger.debug("GWSService(%s):error:unhandled action %s" % (self.name,action))
-				return
-			function(client, data)
-	def exec_action(self, client, action, data):
-		self.send_proc.send((client, action, data,))
+	def listen (self, timeout=None):
+		if not self.recv_proc.poll(timeout):
+			return
+		action, data = self.recv_proc.recv()
+		try:
+			function = getattr(self, "action_" + action)
+			#self.logger.debug("GWSService(%s):error:unhandled action %s" % (self.name,action))
+			function(**data)
+		except Exception as e:
+			print traceback.format_exc()
+	def exec_action(self, action, data):
+		self.send_proc.send((action, data,))
 		#self.logger.debug("%s:worker:%s" % (self.service.name, self.action))
 

@@ -10,21 +10,15 @@ function openSocket(gwss_host, gwss_port)
 		};
 	ws.onmessage = function(ev){
 		var msg = JSON.parse(ev.data)
-		console.log(msg.service)
-		service = window[msg.service]
-		if (!service) return;
-		var fn = service["action_"+msg.action];
+		console.log(msg)
+		var fn = window["action_"+msg.js_action];
 		if(typeof fn === 'function') {
 			fn(msg.data);
 		}
 	}
-				// Virtual service used to give 'internal' messages
 	return(ws);
 	}
-echo = {
-	action_display : function(line){
-		message = "<li>"+line+"</li>"
-		$("#debug").append(message)
-	}
+function action_display(line){
+	message = "<li>"+line.key+"</li>"
+	$("#debug").append(message)
 }
-
