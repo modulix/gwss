@@ -79,5 +79,5 @@ class ClientService(DaemonService):
 		#gevent.signal(signal.SIGHUP, gwss.sighup)
 		#self.logger.info("gwss:WebSocket Server is listening at http://%s:%s/" % (server, config.port))
 
-def clients(send_queue):
-	return ClientService("clients",send_queue)
+def clients():
+	return ClientService("clients")

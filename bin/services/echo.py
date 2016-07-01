@@ -9,5 +9,5 @@ class EchoService(SimpleService):
 	def action_echo(self, client, key):
 		self.send_action("clients", "send_client", client=client, js_action="display", data={"key":key})
 
-def echo(send_queue):
-	return EchoService("echo", send_queue)
+def echo():
+	return EchoService("echo")

@@ -2,12 +2,13 @@
 from __future__ import print_function
 import sys
 import os
+import select
 import time
 import json
 import argparse
 from datetime import datetime, timedelta
 from threading import Thread
-from multiprocessing import Queue, Pipe
+from multiprocessing import Pipe
 import importlib 
 import traceback
 import logging
@@ -24,6 +25,7 @@ api_url = "/api"
 #html_dir = "/usr/share/nginx/html"
 html_dir = "/home/arthur/gwss/public_html"
 services_dir = "/home/arthur/gwss/bin/services"
+daemon_dir = "/home/arthur/gwss/bin/daemons"
 
 class GWSServer():
 	"""
@@ -45,6 +47,7 @@ class GWSServer():
 		self.logger.info("GWSServer init...")
 		sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "services"))
 		sys.path.insert(0, services_dir)
+		sys.path.insert(0, daemon_dir)
 		sys.path.insert(0, html_dir)
 
 		# FS socket && Network socket
@@ -68,9 +71,8 @@ class GWSServer():
 		listener.listen(5)
 
 		self.services = {}
-		self.send_queue = Queue()
-		self.listen = True
-		self.daemon = True
+		self.daemons = {}
+		self.listen_filenos = {}
 		#sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "services"))
 	def sighup(self):
 		self.logger.debug("GWSServer receive SIGHUP signal..." )
@@ -87,18 +89,38 @@ class GWSServer():
 				try :
 					module = importlib.import_module("services."+fln)
 					self.logger.debug("Service init start : %s" % fln)
-					service = getattr(module, fln)(self.send_queue)
+					service = getattr(module, fln)()
 					self.logger.debug("Service init end : %s" % fln)
 					self.services[fln] = service
 				except Exception as e:
 					self.logger.info("Failed to load service %s" % fln)
 					self.logger.debug(traceback.format_exc())
+		for file_name in os.listdir(daemon_dir):
+			(fln, fle) = os.path.splitext(file_name)
+			if os.path.isfile(os.path.join(daemon_dir, file_name)) and fle == ".py" and fln != "__init__":
+				self.logger.debug("Daemon loading : %s" % file_name)
+		# Get service ration from ./service/service.py file
+				try :
+					module = importlib.import_module("daemons."+fln)
+					self.logger.debug("Daemon init start : %s" % fln)
+					service = getattr(module, fln)()
+					self.logger.debug("Daemon init end : %s" % fln)
+					self.listen_filenos[service.listen_fileno] = service
+					self.daemons[fln] = service
+					self.services[fln] = service
+				except Exception as e:
+					self.logger.info("Failed to load daemon %s" % fln)
+					self.logger.debug(traceback.format_exc())
 		self.logger.debug("GWSServer ready")
+		# Give the service awareness from other modules for inter-module communication
+		for service in self.services.values():
+			service.set_services(self.services)
 		while True:
-			msg = self.send_queue.get()
-			if msg["service"] in self.services:
-				srv = msg.pop("service")
-				self.services[srv].add_event(msg["action"], msg["data"])
+			read_fds, _, _ = select.select(self.listen_filenos.keys(), [], [])
+			for fd in read_fds:
+				service, action, data = self.listen_filenos[fd].recv_action()
+				if service in self.services:
+					self.services[service].add_event(action, data)
 		self.logger.debug("GWSServer exiting...")
 
 
