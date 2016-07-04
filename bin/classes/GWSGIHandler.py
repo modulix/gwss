@@ -28,16 +28,16 @@ if sys.version_info.major == 3:
 	import urllib.parse as urlparse
 
 api_url = "/api"
-html_dir = "/usr/share/nginx/html"
+html_dir = "/home/arthur/gwss/public_html"
 
 #class GWSGIHandler(Thread):
 class GWSGIHandler():
 	"""
 	WSGI
 	"""
-	def __init__(self, gwss, environ, response):
+	def __init__(self, send_queue, environ, response):
 		#super(GWSGIHandler, self).__init__()
-		self.gwss = gwss
+		#self.gwss = gwss
 		self.environ = environ
 		self.response = response
 		self.content = []
@@ -54,25 +54,13 @@ class GWSGIHandler():
 		response_headers = [("Content-type", "text/text"), ("Content-Length", str(len(msg)))]
 		self.response(status, response_headers)
 		if self.environ["PATH_INFO"][:len(api_url)] == api_url:
-			(prefixe, service, action) = self.environ["PATH_INFO"][1:].split("/", 2)
-			data = self.environ["QUERY_STRING"]
-			self.gwss.logger.debug("GWSGIHandler(%s):%s: service=%s action=%s data=%s" % (id(self), self.environ["PATH_INFO"], service, action, data))
-			req = urlparse.parse_qs(self.environ["QUERY_STRING"])
-			data = {"id": req["id"][0], "value" : req["value"][0]}
-			msg = "error:Service(%s) or action(%s) not found..." % (service, action)
-			for svc in self.gwss.services:
-				if service == svc.name:
-					# Using the "api" function of ./services/service.py
-					exec("from services import %s" % service)
-					exec("%s.api(self.gwss, svc, action, data)" % service)
-					msg = status = "200 OK"
-					response_headers = [("Content-type", "text/html"), ("Content-Length", str(len(msg)))]
-					self.response(status, response_headers)
+			#previously api path call
+			pass
 		else:
 			file_name = os.path.join(os.path.join(os.path.expanduser(html_dir), self.environ["PATH_INFO"][1:]))
 			ext = fname = ""
 			(fname, ext) = os.path.splitext(file_name)
-			self.gwss.logger.debug("GWSGIHandler:%s(%s)" % (fname,ext))
+			#self.gwss.logger.debug("GWSGIHandler:%s(%s)" % (fname,ext))
 			# Directories -> files.py
 			module = action = ""
 			if fname[-1] == "/":
@@ -105,7 +93,7 @@ class GWSGIHandler():
 					(module, action) = os.path.split(self.environ["PATH_INFO"][1:])
 					(action,ext) = os.path.splitext(action)
 					module = module.replace("/",".")
-					self.gwss.logger.debug("GWSGIHandler:PY:module=%s action=%s" % (module, action))
+					#self.gwss.logger.debug("GWSGIHandler:PY:module=%s action=%s" % (module, action))
 					if not module:
 						exec("from %s import index" % (action))
 						exec("msg = index(self.gwss, self.environ, self.response)")
@@ -130,7 +118,7 @@ class GWSGIHandler():
 					self.response(status, response_headers)
 			else:
 				# No static file, no python module...
-				self.gwss.logger.debug("GWSGIHandler:%s Not found"% (file_name))
+				#self.gwss.logger.debug("GWSGIHandler:%s Not found"% (file_name))
 				msg = status = "404 Not found"
 				response_headers = [("Content-type", "text/text"), ("Content-Length", str(len(msg)))]
 				self.response(status, response_headers)
