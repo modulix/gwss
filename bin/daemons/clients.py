@@ -70,7 +70,7 @@ class ClientService(DaemonService):
     def add_client(self, client):
         self.clients[id(client)] = client
     def del_client(self, client):
-        self.logger.debug("ClientService:del_client %s" % id_client)
+        self.logger.debug("ClientService:del_client %s" % id(client))
         del self.clients[id(client)]
     def action_send_client (self, client, js_action, data):
         self.logger.debug("ClientService:action_send_client(%s,%s,%s)" % (client,js_action, data))
