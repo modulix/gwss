@@ -54,24 +54,16 @@ function openSocket()
 				}
 			else {
 				var json = JSON.parse(ev.data);
-				// Virtual service used to give 'internal' messages
-				if (json.service == "gwss") {
-					if (json.action == "subscribe") {
-						// Client unique identifier
-						gwss_id = json.data.value;
-						if (gwss_debug)
-							$debug.prepend('<li class="label-info">ID : ' + json.data.value + " (" + json.data.id + ")");
-						}
+				if (json.action == "subscribe") {
+					// Client unique identifier
+					gwss_id = json.data.value;
+					if (gwss_debug)
+						$debug.prepend('<li class="label-info">ID : ' + json.data.value + " (" + json.data.id + ")");
+						$debug.prepend('<li class="label-info">Subscription : ' + json.service + "=" + json.data.value);
 					}
 				else {
-					if (json.action == "subscribe") {
-						if (gwss_debug)
-							$debug.prepend('<li class="label-info">Subscription : ' + json.service + "=" + json.data.value);
-						}
-					else {
-						if (gwss_debug)
-							$debug.prepend('<li>' + json.service + ' : ' + ev.data);
-						}
+					if (gwss_debug)
+						$debug.prepend('<li>' + json.service + ' : ' + ev.data);
 					}
 				gwss_receive(json);
 				}

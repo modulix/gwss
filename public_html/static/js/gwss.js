@@ -7,7 +7,7 @@
 
 // Default values, could be overwritten in html file
 var gwss_host = 'localhost';
-var gwss_port = 80;
+var gwss_port = 8888;
 var gwss_retry = 10;
 var gwss_id = 0;
 var gwss_groups = [];
@@ -27,31 +27,12 @@ function openSocket()
 			}
 		};
 	ws.onmessage = function(ev){
-		if (ev.data.substring(0,5) == "error")
-			{
-			if (typeof gwss_error === "function") { 
-				gwss_error();
-				}
+		var json = JSON.parse(ev.data);
+		if (json.action == "subscribe") {
+			// Client unique identifier
+			gwss_id = json.data.value;
 			}
-		else {
-			if (ev.data.substring(0,4) == "ping")
-				{
-				if (typeof gwss_ping === "function") { 
-					gwss_ping();
-					}
-				}
-			else {
-				var json = JSON.parse(ev.data);
-				// Virtual service used to give 'internal' messages
-				//if (json.service == "gwss") {
-					if (json.action == "subscribe") {
-						// Client unique identifier
-						gwss_id = json.data.value;
-						}
-					//}
-				gwss_receive(json);
-				}
-			}
+		gwss_receive(json);
 		};
 	ws.onclose = function(ev){
 		if (typeof gwss_close === "function") { 

@@ -14,11 +14,11 @@
 	<script>
 	// GLOBAL var
 	gwss_host = "127.0.0.1";
-	gwss_port = 44400;
+	gwss_port = 8888;
 	// Seconds to wait before retry to open a closed socket
 	gwss_retry = 10;
 	// Display or not debug entries by default
-	gwss_debug = true;
+	gwss_debug = false;
 	
 	var notifications = [];
 	var max_notifications = 3;
@@ -109,14 +109,14 @@
 		// {"service": "echo", "action": "set", "data": { ... }}
 		//
 
-		if (json.service == "gwss" && json.action == "subscribe")
+		if (json.js_action == "subscribe")
 			{
 			// This message contain our unique client id
 			$('#' + json.data.id).text(json.data.value);
 			}
 
 		// Can provide from any service...
-		if (json.action == "set")
+		if (json.js_action == "display")
 			{
 			// If value is an array, creating li elements
 			if (Array.isArray(json.data.value)) {
@@ -183,13 +183,6 @@ function gwss_subscription(ws, service, onoff, data)
     }
 
 	$(document).ready(function() {
-		// Server and port where gwss is running
-		gwss_host = "gwss.modulix.net";
-		gwss_port = 80;
-		// Seconds to wait before retry to open a closed socket
-		gwss_retry = 10;
-		// Display or not debug entries
-		gwss_debug = false;
 		// Opening the socket in global handler
 		gwss = openSocket();
 		});
