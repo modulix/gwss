@@ -71,9 +71,12 @@ class ClientService(DaemonService):
         self.clients[id(client)] = client
     def del_client(self, client):
         self.logger.debug("ClientService:del_client %s" % id(client))
-        del self.clients[id(client)]
+        try:
+            del self.clients[id(client)]
+        except:
+            pass
     def action_send_client (self, client, js_action, data):
-        self.logger.debug("ClientService:action_send_client(%s,%s,%s)" % (client,js_action, data))
+        self.logger.debug("ClientService:action_send_client(%s,%s)" % (js_action, data))
         try:
             self.clients[client].send(json.dumps({"js_action":js_action, "data":data}))
         except:

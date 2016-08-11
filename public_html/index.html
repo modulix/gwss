@@ -16,7 +16,7 @@
 	gwss_host = "127.0.0.1";
 	gwss_port = 8888;
 	// Seconds to wait before retry to open a closed socket
-	gwss_retry = 10;
+	gwss_retry = 5;
 	// Display or not debug entries by default
 	gwss_debug = false;
 	
@@ -95,7 +95,8 @@
 			if (this.checked)
 				{
 				//gwss_subscription(gwss, this.value, true, "gwss_" + this.value);
-				gwss_subscription(gwss, this.value, true, '{"id": "gwss_' + this.value + '", "value": "' + this.id + '"}');
+				//gwss_subscription(gwss, this.value, true, '{"id": "gwss_' + this.value + '", "value": "' + this.id + '"}');
+				gwss_subscription(gwss, this.value, true, '{}');
 				}
 			});
 		}
@@ -108,12 +109,6 @@
 		// This server send JSON messages with "service", "action" and "data" elements
 		// {"service": "echo", "action": "set", "data": { ... }}
 		//
-
-		if (json.js_action == "subscribe")
-			{
-			// This message contain our unique client id
-			$('#' + json.data.id).text(json.data.value);
-			}
 
 		// Can provide from any service...
 		if (json.js_action == "display")
@@ -171,7 +166,15 @@ function gwss_subscription(ws, service, onoff, data)
         {
         if (gwss_debug)
             $debug.prepend('<li class="label-success">Websocket:Subscribe service ' + service + " " + data);
-        ws.send('{"service":"' + service + '", "action":"subscribe", "data":' + data + '}');
+		if (service == "pdf")
+			{
+			data = document.getElementsByTagName("HTML")[0].outerHTML;
+			ws.send('{"service":"' + service + '", "action":"subscribe", "data": {"page": "' + btoa(data) + '"}}');
+			}
+		else
+			{
+			ws.send('{"service":"' + service + '", "action":"subscribe", "data":' + data + '}');
+			}
         }
     else
         {
@@ -194,40 +197,44 @@ function gwss_subscription(ws, service, onoff, data)
 <body>
 	<div class="container-fluid">
     <h1>gwss is WebSocket Server</h1>
+	<h2>gwss demonstration page</h2>
 	<p>
 	This page shows some examples of included services in <b>gwss</b>, you can have a look on source code in the <b>./services</b> subdirectory of this <a href="https://github.com/modulix/gwss">project</a>.
 	<br />
 	This <a href="http://gwss.modulix.net/">gwss</a> is public, feel free to use it for demo and test purpose. For more serious usage, you need to download sources of gwss from <a href="https://github.com/modulix/gwss">Github</a> and run it on your own webserver. See, included <a href="https://github.com/modulix/gwss/wiki/Doc">documentation</a> about prerequisites and setup.
 	</p>
-	<h2>gwss demonstration page</h2>
+	<p>
+		<table class="table table-sm">
+			<thead>
+			<tr>
+				<td>
+					Websocket status : <span id="gwss_status" class="label label-warning">Close</span>
+				</td>
+			</tr>
+			</thead>
+			<tbody>
+			<tr>
+				<td>
+					<input class="gwss_close" type="button" onclick="gwss.close();" value="Close" disabled></input>
+					<input class="gwss_open" type="button" onclick="gwss = openSocket();" value="Open" disabled></input>
+				</td>
+			</tr>
+			</tbody>
+		</table>
 		<p>
-			<table class="table table-sm">
-				<thead>
-				<tr>
-					<td>
-						Websocket status : <span id="gwss_status" class="label label-warning">Close</span>
-					</td>
-					<td>
-						<input class="gwss_close" type="button" onclick="gwss.close();" value="Close" disabled></input>
-						<input class="gwss_open" type="button" onclick="gwss = openSocket();" value="Open" disabled></input>
-					</td>
-					<td>
-						UID :<b><span id="gwss_id"><img src="/static/img/loading.gif" alt="loading..."/></span></b>
-					</td>
-				</tr>
-				</thead>
-			</table>
-		<p>
-		The connection is permanent and in case of close or failure this page will automaticaly try to reconnect every 10 seconds (depending on gwss_retry value). Have a try to close the websocket and wait to see automatic reconnection. To avoid this feature because of timeout, the server send also a ping each minute if no message is exchanged.
+		The connection is permanent and in case of close or failure this page will automaticaly try to reconnect every 5 seconds (depending on gwss_retry value). Have a try to close the websocket and wait to see automatic reconnection.
 	  </p>
     <h2>WebSocket Services</h2>
+    <h3><input class="service" onclick="gwss_subscription(gwss, 'ping', this.checked, '{}');" type="checkbox" value="ping"> </input>ping service</h3>
+		Sometime needed to avoid timeout because of inactivity, the server can send a ping, by default evry 15 seconds.
     <h3><input class="service" onclick="gwss_subscription(gwss, 'sysdate', this.checked, JSON.stringify({'id': 'gwss_time', 'value': 'utc'}));" type="checkbox" value="sysdate"> </input>sysdate service</h3>
 	  <p>
 	  Server datetime : <span id="gwss_time" style="font-weight: bold;"></span>
 	  </p>
     <h3>chat service</h3>
 	<p>There is a dedicated page for websocket <a href="chat.html">chat service</a>.</p>
-    <h3><input class="service" onclick="gwss_subscription(gwss, 'stats', this.checked, JSON.stringify({'id': 'gwss_time', 'value': 'utc'}));" type="checkbox" value="stats" checked> </input>stats service</h3>
+	<p>There is a dedicated page for websocket <a href="kbdecho.html">kbdecho service</a> (keyboard echo, usefull for games ;-).</p>
+    <h3><input class="service" onclick="gwss_subscription(gwss, 'stats', this.checked, JSON.stringify({'id': 'gwss_stats', 'value': 'full'}));" type="checkbox" value="stats" checked> </input>stats service</h3>
 	<p>
 			Clients connected to this server : <b><span id="gwss_clients_count">?</span></b>
 			<br />
@@ -247,12 +254,12 @@ function gwss_subscription(ws, service, onoff, data)
 		<tbody>
 			<tr>
 				<td scope="row">
-					<figure id="gwss_stat1" style="width: 440px; height: 360px;">
+					<figure id="gwss_stats_1" style="width: 440px; height: 360px;">
 						<embed type="image/svg+xml" src="" />
 					</figure>
 				</td>
 				<td>
-					<figure id="gwss_stat2" style="width: 440px; height: 360px;">
+					<figure id="gwss_stats_2" style="width: 440px; height: 360px;">
 						<embed type="image/svg+xml" src="" />
 					</figure>
 				</td>

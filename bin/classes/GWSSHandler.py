@@ -61,6 +61,9 @@ class GWSSHandler():
                 except:
                     self.logger.debug("GWSSHandler(%s):error not valid JSON msg:%s" % (id(self),message))
                     sys.exc_clear()
-                self.client_service.send_action(msg["service"], msg["action"], client=id(self), **msg["data"])
+                try:
+                    self.client_service.send_action(msg["service"], msg["action"], client=id(self), **msg["data"])
+                except:
+                    self.logger.debug("GWSSHandler(%s):message should contain 'service', 'action' and 'data' items:%s" % (id(self),message))
         self.logger.debug("GWSSHandler(%s) stopping..." % id(self))
         self.client_service.del_client(self)

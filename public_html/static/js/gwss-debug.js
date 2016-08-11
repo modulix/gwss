@@ -8,9 +8,8 @@
 // Default values, could be overwritten in html file
 var gwss_host = 'localhost';
 var gwss_port = 80;
-var gwss_retry = 10;
+var gwss_retry = 5;
 var gwss_debug = false;
-var gwss_id = 0;
 var gwss_groups = [];
 
 function openSocket()
@@ -33,18 +32,17 @@ function openSocket()
 		gwss_open();
 		};
 	ws.onmessage = function(ev){
-		if (ev.data.substring(0,5) == "error")
-			{
+		var json = JSON.parse(ev.data);
+		if (json.js_action == "error") {
 			if (gwss_debug) {
-				$debug.prepend('<li class="label-warning">' + ev.data);
+				$debug.prepend('<li class="label-info">' + ev.data);
 				}
 			if (typeof gwss_error === "function") { 
 				gwss_error();
 				}
 			}
 		else {
-			if (ev.data.substring(0,4) == "ping")
-				{
+			if (json.js_action == "ping") {
 				if (gwss_debug) {
 					$debug.prepend('<li class="label-info">' + ev.data);
 					}
@@ -53,18 +51,8 @@ function openSocket()
 					}
 				}
 			else {
-				var json = JSON.parse(ev.data);
-				if (json.action == "subscribe") {
-					// Client unique identifier
-					gwss_id = json.data.value;
-					if (gwss_debug)
-						$debug.prepend('<li class="label-info">ID : ' + json.data.value + " (" + json.data.id + ")");
-						$debug.prepend('<li class="label-info">Subscription : ' + json.service + "=" + json.data.value);
-					}
-				else {
-					if (gwss_debug)
-						$debug.prepend('<li>' + json.service + ' : ' + ev.data);
-					}
+				if (gwss_debug)
+					$debug.prepend('<li>' + json.service + ' : ' + ev.data);
 				gwss_receive(json);
 				}
 			}

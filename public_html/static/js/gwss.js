@@ -8,8 +8,7 @@
 // Default values, could be overwritten in html file
 var gwss_host = 'localhost';
 var gwss_port = 8888;
-var gwss_retry = 10;
-var gwss_id = 0;
+var gwss_retry = 5;
 var gwss_groups = [];
 
 
@@ -28,10 +27,6 @@ function openSocket()
 		};
 	ws.onmessage = function(ev){
 		var json = JSON.parse(ev.data);
-		if (json.action == "subscribe") {
-			// Client unique identifier
-			gwss_id = json.data.value;
-			}
 		gwss_receive(json);
 		};
 	ws.onclose = function(ev){

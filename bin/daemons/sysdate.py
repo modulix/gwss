@@ -13,7 +13,10 @@ class SysdateService(DaemonService):
     def action_subscribe(self, client, id="", value=""):
         self.clients.append(client)
     def action_unsubscribe(self, client, id="", value=""):
-        self.clients.remove(client)
+        try:
+            self.clients.remove(client)
+        except:
+            pass
     def main (self):
         while True:
             msg = datetime.now().strftime("%x %X")

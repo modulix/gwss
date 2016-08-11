@@ -17,11 +17,11 @@ class PingService(DaemonService):
         while True:
             t = time.time()
             diff = 0
-            while diff < 10:
-                self.listen(10-diff)
+            while diff < 15:
+                self.listen(15-diff)
                 diff = time.time() - t
             for client in self.clients :
-                self.send_action("clients", "send_client", client=client, js_action="display", data={"key":"ping"})
+                self.send_action("clients", "send_client", client=client, js_action="ping", data={})
 
 def ping():
     return PingService("ping")
