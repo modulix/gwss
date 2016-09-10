@@ -110,9 +110,10 @@ class GWSServer():
         while True:
             read_fds, _, _ = select.select(self.listen_filenos.keys(), [], [])
             for fd in read_fds:
-                service, action, data = self.listen_filenos[fd].recv_action()
+                msg = self.listen_filenos[fd].recv_action()
+                service = msg.pop("service")
                 if service in self.services:
-                    self.services[service].add_event(action, data)
+                    self.services[service].add_event(msg)
         self.logger.debug("GWSServer exiting...")
 
 #from gevent.lock import Semaphore

@@ -48,13 +48,13 @@ class ClientService(DaemonService):
             pass
         # Is this a WebSocket request (we need to maintain this connection)
         if ws:
-            self.logger.debug("ClientService:gwss_dispatch:WebSocket:%s" % (url))
+            self.logger.debug("gwss_dispatch:WebSocket:%s" % (url))
             wshandler = GWSSHandler(self, environ, ws)
             gevent.spawn(wshandler.run())
             return(None)
         # So, this is a WSGI request (not a WebSocket)
         else:
-            self.logger.debug("ClientService:gwss_dispatch:WSGI:%s" % (url))
+            self.logger.debug("gwss_dispatch:WSGI:%s" % (url))
             wsgihandler = GWSGIHandler(self.logger, self.config["html_dir"], environ, response)
             msg = wsgihandler.run()
             return(msg)
@@ -62,16 +62,19 @@ class ClientService(DaemonService):
     def add_client(self, client):
         self.clients[id(client)] = client
     def del_client(self, client):
-        self.logger.debug("ClientService:del_client %s" % id(client))
+        self.logger.debug("del_client %s" % id(client))
         try:
             del self.clients[id(client)]
         except:
             pass
-    def action_send_client (self, client, js_action, data):
-        self.logger.debug("ClientService:action_send_client(%s,%s)" % (js_action, data))
+    def action_send_client (self, msg):
         try:
-            self.clients[client].send(json.dumps({"js_action":js_action, "data":data}))
+            client = msg["data"].pop("client")
+            self.clients[client].send(json.dumps(msg["data"]))
+        except KeyError:
+            self.logger.error("Invalid packet dropped: %s" % msg)
         except:
+            self.logger.warning("Client lost, could not deliver %s" % msg)
             # Lost one...
             self.del_client(client)
 

@@ -5,9 +5,9 @@ class EchoService(SimpleService):
     """
     This service sends back received messages 
     """
-    def action_kbdecho(self, client, **data):
-        self.logger.debug("%s:EchoService:%s" % (self.name, data))
-        self.send_action("clients_master", "send_client", client=client, js_action="display", data=data)
+    def action_kbdecho(self, msg):
+        self.logger.debug("Echoing %s" % msg)
+        self.reply(msg, {"action":"display", "data":msg["data"]})
 
 def kbdecho(config):
     return EchoService("kbdecho", config)

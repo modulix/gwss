@@ -11,8 +11,8 @@ class SysdateService(DaemonService):
         while True:
             msg = datetime.now().strftime("%x %X")
             self.listen(1-0.001)
-            for client in self.clientvars.keys():
-                self.send_action("clients", "send_client", client=client, js_action="display", data={"id":"gwss_time", "value": msg})
+            for client in self.clientvars:
+                self.reply(client["source"], {"action":"display", "data":{"id":"gwss_time", "value": msg})
 
 def sysdate(config):
     return SysdateService("sysdate", config)

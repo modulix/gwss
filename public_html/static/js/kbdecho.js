@@ -10,7 +10,7 @@ function openSocket(gwss_port=8888)
 	ws.onmessage = function(ev){
 		var msg = JSON.parse(ev.data)
 		console.log(msg)
-		var fn = window["action_"+msg.js_action];
+		var fn = window["action_"+msg.action];
 		if(typeof fn === 'function') {
 			fn(msg.data);
 		}

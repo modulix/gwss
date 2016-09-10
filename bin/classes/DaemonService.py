@@ -15,21 +15,16 @@ class DaemonService(BaseService):
         self.parent_end, self.child_end = Pipe()
         self.listen_fileno = self.parent_end.fileno()
         self.proc.start()
-
     def listen (self, timeout=None):
         if not self.child_end.poll(timeout):
             return
-        action, data = self.child_end.recv()
-        try:
-            function = getattr(self, "action_" + action)
-            function(**data)
-        except Exception as e:
-            print(traceback.format_exc())
-    def add_event(self, action, data):
-        self.logger.debug("Piping action %s to process" % action)
-        self.parent_end.send((action, data,))
-    def send_action(self, service, action, **kwargs):
-        self.child_end.send((service, action, kwargs))
+        msg = self.child_end.recv()
+        self.exec_action(msg)
+    def add_event(self, msg):
+        self.logger.debug("Piping message: %s" % msg)
+        self.parent_end.send(msg)
+    def send_action(self, msg):
+        self.child_end.send(msg)
     def recv_action(self):
         return self.parent_end.recv()
 

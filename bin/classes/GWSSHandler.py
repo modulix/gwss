@@ -49,7 +49,7 @@ class GWSSHandler():
                 pass
                 #sys.exc_clear()
             if message is None:
-                self.logger.debug("GWSSHandler:Socket closed {}".format(datetime.now().strftime("%H:%M:%S %f")))
+                self.logger.debug("GWSSHandler:Socket closed")
                 self.listen = False
             else:
                 self.logger.debug("GWSSHandler(%s):receive:%s" % (id(self),message))
@@ -59,7 +59,8 @@ class GWSSHandler():
                     self.logger.debug("GWSSHandler(%s):error not valid JSON msg:%s" % (id(self),message))
                     sys.exc_clear()
                 try:
-                    self.client_service.send_action(msg["service"], msg["action"], client=id(self), **msg["data"])
+                    msg["source"] = {"service": self.client_service.name, "action":"send_client", "data": {"client":id(self)}}
+                    self.client_service.send_action(msg)
                 except Exception as e:
                     self.logger.debug(str(e))
         self.logger.debug("GWSSHandler(%s) stopping..." % id(self))

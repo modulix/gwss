@@ -13,8 +13,8 @@ class PingService(DaemonService):
             while diff < 15:
                 self.listen(15-diff)
                 diff = time.time() - t
-            for client in self.clientvars.keys() :
-                self.send_action("clients", "send_client", client=client, js_action="ping", data={})
+            for env in self.clientvars:
+                self.reply(env["source"],{"action":"ping"})
 
 def ping(config):
     return PingService("ping", config)

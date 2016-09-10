@@ -3,6 +3,12 @@ import traceback
 from multiprocessing import Pipe
 import common.logger
 
+def make_msg(service, action, data={}, source=None):
+    msg = {"service":service, "action":action, "data":data}
+    if source:
+        msg["source"] = source
+    return msg
+
 class BaseService(object):
     """
     Each service is composed of two ends : a base service which communicates
@@ -13,21 +19,31 @@ class BaseService(object):
         self.logger.info("Service init")
         self.config = config
         self.name = name
-        self.clientvars = {}
+        self.clientvars = [] 
     def set_services (self, services):
         self.services = services
-    def exec_action(self, action, data):
+    def exec_action(self, msg):
         """ Transform action request into action_ prefixed method call """
-        self.logger.debug("exec_action: %s" % action)
         try:
+            action = msg.pop("action")
             method = getattr(self, "action_" + action)
-            method(**data)
+            method(msg)
+            self.logger.debug("Executed action: %s" % action)
         except Exception as e:
             self.logger.error("Service excution fail: %s" % str(e))
             self.logger.debug(traceback.format_exc())
-    def action_subscribe (self, client):
-        self.clientvars[client] = {}
-    def action_unsubscribe (self, client):
-        del self.clientvars[client]
+    def action_subscribe (self, msg):
+        self.clientvars.append({"source": msg["source"]})
+    def action_unsubscribe (self, msg):
+        self.clientvars = [c for c in self.clientvars if not c["source"] == msg["source"]]
+    def reply(self, msg, data={}, source_action=None, source_data={}):
+        reply = msg.pop("source")
+        if source_action:
+            reply["source"] = make_msg(self.name, source_action, source_data)
+        if reply["data"]:
+            data = data.copy()
+            data.update(reply["data"])
+        reply["data"] = data
+        self.send_action(reply)
 
 
