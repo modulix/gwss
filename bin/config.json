@@ -1,17 +1,18 @@
 {
+    "logs":[
+        {
+            "type": "file",
+            "path": "/home/arthur/gwss/gwss.log",
+            "level": "INFO",
+            "format": "default"
+        }
+    ],
     "core":{
         "pidfile": "/home/arthur/gwss/gwss.pid",
         "sockname": "/home/arthur/gwss/gwss.sock",
         "service_dir": "/home/arthur/gwss/bin/services",
         "daemon_dir": "/home/arthur/gwss/bin/daemons",
-        "logs":[
-            {
-                "type": "file",
-                "path": "/home/arthur/gwss/gwss.log",
-                "level": "DEBUG",
-                "format": "default"
-            }
-        ]
+        "logs":[]
     },
     "services":{
         "kbdecho":{
@@ -20,7 +21,7 @@
                     "type": "file",
                     "path": "/home/arthur/gwss/kbdecho.log",
                     "level": "DEBUG",
-                    "format": "default"
+                    "format": "short"
                 }
             ]
         }
@@ -37,7 +38,7 @@
                         "type": "file",
                         "path": "/home/arthur/gwss/clients.log",
                         "level": "DEBUG",
-                        "format": "default"
+                        "format": "short"
                     }
                 ]
             }

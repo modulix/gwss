@@ -10,7 +10,7 @@ class BaseService(object):
     """
     def __init__(self, name, config):
         self.logger = common.logger.get_logger_from_config(config.get("logs", []), name)
-        self.logger.info("GWSService(%s):init" % name)
+        self.logger.info("Service init")
         self.config = config
         self.name = name
         self.clientvars = {}
@@ -18,13 +18,12 @@ class BaseService(object):
         self.services = services
     def exec_action(self, action, data):
         """ Transform action request into action_ prefixed method call """
-        self.logger.debug("GWSService(%s):exec_action:%s" % (self.name, action))
+        self.logger.debug("exec_action: %s" % action)
         try:
-            self.logger.debug("%s:action_%s:%s" % (self.name, action, data))
             method = getattr(self, "action_" + action)
             method(**data)
         except Exception as e:
-            self.logger.warning("GWSService(%s):error:%s" % (self.name,str(e)))
+            self.logger.error("Service excution fail: %s" % str(e))
             self.logger.debug(traceback.format_exc())
     def action_subscribe (self, client):
         self.clientvars[client] = {}

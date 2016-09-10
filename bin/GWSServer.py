@@ -28,9 +28,12 @@ class GWSServer():
                 self.config = all_conf["core"]
                 self.service_conf = all_conf.get("services", {})
                 self.daemon_conf = all_conf.get("daemons", {})
+                # We setup root logger, but we won't use it directly. 
+                root_logger = common.logger.get_logger_from_config(all_conf.get("logs", []))
         except IOError:
             sys.exit("Unable to read root config. Exiting...")
-        self.logger = common.logger.get_logger_from_config(self.config.get("logs",[]))
+        # We log in our own logger. It is then propagated to root logger.
+        self.logger = common.logger.get_logger_from_config(self.config.get("logs", []), "core")
         self.logger.info("GWSServer init...")
         # PID file (needed when running as service)
         try:
@@ -67,7 +70,7 @@ class GWSServer():
         # This server start a service thread for each .py file found in ./services subdirectory
         service_dir = self.config["service_dir"]
         daemon_dir = self.config["daemon_dir"]
-        self.logger.debug("GWSServer starting all services in %s :" % service_dir)
+        self.logger.debug("Loading all services in %s :" % service_dir)
         
         # Load all services. One instance for each module.
         for file_name in os.listdir(service_dir):
@@ -85,8 +88,6 @@ class GWSServer():
                 except Exception as e:
                     self.logger.warning("Failed to load service %s" % fln)
                     self.logger.debug(traceback.format_exc())
-        self.logger.debug("GWSServer starting all daemons in %s :" % daemon_dir)
-        
         # Daemons are different. There is one named instance for each conf for them.
         for daemon_type in self.daemon_conf.keys():
             self.logger.debug("Daemon loading : %s" % daemon_type)

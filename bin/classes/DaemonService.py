@@ -10,8 +10,8 @@ class DaemonService(BaseService):
     """
     def __init__(self, name, config):
         super(DaemonService, self).__init__(name, config)
-        self.logger.debug("DaemonService(%s):init" % id(self))
         self.proc = Process(target=self.main)
+        self.proc.daemon = True
         self.parent_end, self.child_end = Pipe()
         self.listen_fileno = self.parent_end.fileno()
         self.proc.start()
@@ -22,13 +22,12 @@ class DaemonService(BaseService):
         action, data = self.child_end.recv()
         try:
             function = getattr(self, "action_" + action)
-            self.logger.debug("DaemonService(%s):%s:%s" % (self.name,action,data))
             function(**data)
         except Exception as e:
             print(traceback.format_exc())
     def add_event(self, action, data):
+        self.logger.debug("Piping action %s to process" % action)
         self.parent_end.send((action, data,))
-        self.logger.debug("%s:add_event:%s" % (self.name, action))
     def send_action(self, service, action, **kwargs):
         self.child_end.send((service, action, kwargs))
     def recv_action(self):
