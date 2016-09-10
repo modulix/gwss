@@ -5,13 +5,10 @@ import os
 import time
 import json
 from datetime import datetime
-#from threading import Thread
-import logging
 
-#class GWSSHandler(Thread):
 class GWSSHandler():
     def __init__(self, client_service, environ, ws):
-        self.logger = logging.getLogger()
+        self.logger = client_service.logger
         self.logger.debug("GWSSHandler(%s):init" % id(self))
         #super(GWSSHandler, self).__init__()
         #self.gwss = gwss
@@ -63,7 +60,7 @@ class GWSSHandler():
                     sys.exc_clear()
                 try:
                     self.client_service.send_action(msg["service"], msg["action"], client=id(self), **msg["data"])
-                except:
-                    self.logger.debug("GWSSHandler(%s):message should contain 'service', 'action' and 'data' items:%s" % (id(self),message))
+                except Exception as e:
+                    self.logger.debug(str(e))
         self.logger.debug("GWSSHandler(%s) stopping..." % id(self))
         self.client_service.del_client(self)

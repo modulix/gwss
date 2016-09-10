@@ -9,9 +9,6 @@
 
 <!-- ### gwss:begin -->
 	<script>
-	// GLOBAL var
-	gwss_host = "gwss.modulix.net";
-	gwss_port = 8888;
 	// Seconds to wait before retry to open a closed socket
 	gwss_retry = 10;
 	// Display or not debug entries by default
@@ -19,7 +16,7 @@
 	
 	var notifications = [];
 	var max_notifications = 3;
-	var gwss = openSocket(gwss_host, gwss_port);
+	var gwss = openSocket(44400);
 	gwss.onopen = function() {
 		var subscribe = {service:"kbdecho",action:"subscribe",data:{}};
 		gwss.send (JSON.stringify(subscribe))

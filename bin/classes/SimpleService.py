@@ -16,5 +16,6 @@ class SimpleService(BaseService):
         self.exec_action(action, data)
     def send_action(self, service, action, **kwargs):
         if service in self.services:
+            self.logger.debug("send_action service %s action %s data %s" % (service, action, str(kwargs)))
             self.services[service].add_event(action, kwargs)
 

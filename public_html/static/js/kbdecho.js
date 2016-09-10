@@ -1,7 +1,6 @@
-
-function openSocket(gwss_host, gwss_port)
+function openSocket(gwss_port=8888)
 	{
-	var ws = new WebSocket('ws://' + gwss_host + ':' + gwss_port + '/gwss');
+	var ws = new WebSocket('ws://' + window.location.hostname + ':' + gwss_port + '/gwss');
 
 	ws.onopen = function(){
 		if (typeof(retry) != 'undefined') {

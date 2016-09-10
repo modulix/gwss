@@ -8,8 +8,8 @@ class DaemonService(BaseService):
     """
     In charge to receive messages and send responses to subscribed clients
     """
-    def __init__(self, name):
-        super(DaemonService, self).__init__(name)
+    def __init__(self, name, config):
+        super(DaemonService, self).__init__(name, config)
         self.logger.debug("DaemonService(%s):init" % id(self))
         self.proc = Process(target=self.main)
         self.parent_end, self.child_end = Pipe()

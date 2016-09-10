@@ -1,0 +1,46 @@
+{
+    "core":{
+        "pidfile": "/home/arthur/gwss/gwss.pid",
+        "sockname": "/home/arthur/gwss/gwss.sock",
+        "service_dir": "/home/arthur/gwss/bin/services",
+        "daemon_dir": "/home/arthur/gwss/bin/daemons",
+        "logs":[
+            {
+                "type": "file",
+                "path": "/home/arthur/gwss/gwss.log",
+                "level": "DEBUG",
+                "format": "default"
+            }
+        ]
+    },
+    "services":{
+        "kbdecho":{
+            "logs":[
+                {
+                    "type": "file",
+                    "path": "/home/arthur/gwss/kbdecho.log",
+                    "level": "DEBUG",
+                    "format": "default"
+                }
+            ]
+        }
+    },
+    "daemons":{
+        "clients":{ 
+            "clients_master": {
+                "server": "0.0.0.0",
+                "port": 44400,
+                "html_dir": "/home/arthur/gwss/public_html/",
+                "max_clients": 1000,
+                "logs":[
+                    {
+                        "type": "file",
+                        "path": "/home/arthur/gwss/clients.log",
+                        "level": "DEBUG",
+                        "format": "default"
+                    }
+                ]
+            }
+        }
+    }
+}

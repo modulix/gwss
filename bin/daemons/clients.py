@@ -9,7 +9,6 @@ from gevent.pywsgi import WSGIServer
 from classes.GWSSHandler import GWSSHandler
 from classes.GWSGIHandler import GWSGIHandler
 from gevent.pool import Pool
-import logging
 
 #if sys.version_info.major == 2:
     #print("running Python 2.x")
@@ -19,26 +18,19 @@ import logging
     #print("running Python 3.x")
     #import urllib.parse as urlparse
 
-#server = "127.0.0.1"
-#port = 10034
-#max_clients = 1000
-import config
-
 class WSGIThread (Thread):
-    def __init__(self, dispatch):
+    def __init__(self, config, dispatch, logger):
         super(WSGIThread, self).__init__()
-        self.logger = logging.getLogger()
-        self.logger.debug("WSGIThread(%s):init" % id(self))
         self.dispatch = dispatch
+        self.logger = logger
         self.daemon = True
+        self.config = config
     def run(self):
         self.logger.debug("WSGIThread(%s):run" % id(self))
-        pool = Pool(config.max_clients)
-        self.logger.info("WebSocket Server is listening at http://%s:%s/" % (config.server, config.port))
-        gwsgi = WSGIServer((config.server, config.port), self.dispatch, spawn=pool, handler_class=WebSocketHandler)
+        pool = Pool(self.config["max_clients"])
+        self.logger.info("WebSocket Server is listening at http://%s:%s/" % (self.config["server"], self.config["port"]))
+        gwsgi = WSGIServer((self.config["server"], self.config["port"]), self.dispatch, spawn=pool, handler_class=WebSocketHandler)
         gwsgi.serve_forever()
-
-
 
 class ClientService(DaemonService):
     def gwss_dispatch(self, environ, response):
@@ -48,7 +40,7 @@ class ClientService(DaemonService):
             GWSGIHandler:WSGI (include /api requests)
         """
         url = environ["PATH_INFO"]
-        #self.logger.debug("gwss_dispatch(%s)" % environ)
+        self.logger.debug("gwss_dispatch(%s)" % environ)
         ws = False
         try:
             ws = environ["wsgi.websocket"]
@@ -63,7 +55,7 @@ class ClientService(DaemonService):
         # So, this is a WSGI request (not a WebSocket)
         else:
             self.logger.debug("ClientService:gwss_dispatch:WSGI:%s" % (url))
-            wsgihandler = GWSGIHandler(self, environ, response)
+            wsgihandler = GWSGIHandler(self.logger, self.config["html_dir"], environ, response)
             msg = wsgihandler.run()
             return(msg)
 
@@ -85,7 +77,7 @@ class ClientService(DaemonService):
 
     def main(self):
         self.clients = {}
-        self.server = WSGIThread(self.gwss_dispatch)
+        self.server = WSGIThread(self.config, self.gwss_dispatch, self.logger)
         self.server.start()
         while True:
             self.listen()
@@ -93,5 +85,5 @@ class ClientService(DaemonService):
         #gevent.signal(signal.SIGQUIT, gevent.kill)
         #gevent.signal(signal.SIGHUP, gwss.sighup)
 
-def clients():
-    return ClientService("clients")
+def clients(name, config):
+    return ClientService(name, config)
