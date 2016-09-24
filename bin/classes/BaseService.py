@@ -20,6 +20,8 @@ class BaseService(object):
         self.config = config
         self.name = name
         self.clientvars = [] 
+        self.public_routes = []
+        self.public_actions = set()
     def set_services (self, services):
         self.services = services
     def exec_action(self, msg):

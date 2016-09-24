@@ -14,7 +14,6 @@ class DaemonService(BaseService):
         self.proc.daemon = True
         self.parent_end, self.child_end = Pipe()
         self.listen_fileno = self.parent_end.fileno()
-        self.proc.start()
     def listen (self, timeout=None):
         if not self.child_end.poll(timeout):
             return

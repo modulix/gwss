@@ -1,6 +1,7 @@
 from classes.DaemonService import DaemonService
 
 import json
+import logging
 from threading import Thread
 import gevent
 from gevent import socket
@@ -9,6 +10,10 @@ from gevent.pywsgi import WSGIServer
 from classes.GWSSHandler import GWSSHandler
 from classes.GWSGIHandler import GWSGIHandler
 from gevent.pool import Pool
+
+from routr import route
+from routr.static import static
+from webob import Request, exc
 
 #if sys.version_info.major == 2:
     #print("running Python 2.x")
@@ -19,10 +24,10 @@ from gevent.pool import Pool
     #import urllib.parse as urlparse
 
 class WSGIThread (Thread):
-    def __init__(self, config, dispatch, logger):
+    def __init__(self, logger_name, config, dispatch):
         super(WSGIThread, self).__init__()
         self.dispatch = dispatch
-        self.logger = logger
+        self.logger = logging.getLogger(logger_name)
         self.daemon = True
         self.config = config
     def run(self):
@@ -40,12 +45,7 @@ class ClientService(DaemonService):
             GWSGIHandler:WSGI (include /api requests)
         """
         url = environ["PATH_INFO"]
-        self.logger.debug("gwss_dispatch(%s)" % environ)
-        ws = False
-        try:
-            ws = environ["wsgi.websocket"]
-        except KeyError:
-            pass
+        ws = environ.get("wsgi.websocket",None)
         # Is this a WebSocket request (we need to maintain this connection)
         if ws:
             self.logger.debug("gwss_dispatch:WebSocket:%s" % (url))
@@ -55,32 +55,40 @@ class ClientService(DaemonService):
         # So, this is a WSGI request (not a WebSocket)
         else:
             self.logger.debug("gwss_dispatch:WSGI:%s" % (url))
-            wsgihandler = GWSGIHandler(self.logger, self.config["html_dir"], environ, response)
+            wsgihandler = GWSGIHandler(self.name, self.collected_routes, environ, response)
             msg = wsgihandler.run()
             return(msg)
 
-    def add_client(self, client):
-        self.clients[id(client)] = client
-    def del_client(self, client):
-        self.logger.debug("del_client %s" % id(client))
+    def add_client(self, address, client):
+        self.clients[address] = client
+    def del_client(self, address):
+        self.logger.debug("del_client %s" % address)
         try:
-            del self.clients[id(client)]
+            del self.clients[address]
         except:
             pass
     def action_send_client (self, msg):
         try:
-            client = msg["data"].pop("client")
-            self.clients[client].send(json.dumps(msg["data"]))
+            address = msg["data"].pop("client")
+            self.clients[address].send(json.dumps(msg["data"]))
         except KeyError:
-            self.logger.error("Invalid packet dropped: %s" % msg)
+            self.logger.warning("Invalid packet dropped: %s" % msg)
         except:
-            self.logger.warning("Client lost, could not deliver %s" % msg)
-            # Lost one...
-            self.del_client(client)
+            self.logger.info("Client lost, could not deliver %s" % msg)
+            self.del_client(address)
 
     def main(self):
         self.clients = {}
-        self.server = WSGIThread(self.config, self.gwss_dispatch, self.logger)
+        routes = []
+        for s in self.services.values():
+            s_routes = s.public_routes
+            if s_routes:
+                routes.append(route(s.name, *s_routes))
+        html_dir = self.config.get("html_dir", "")
+        if html_dir:
+            routes.append(static("", html_dir))
+        self.collected_routes = route("", *routes)
+        self.server = WSGIThread(self.name, self.config, self.gwss_dispatch)
         self.server.start()
         while True:
             self.listen()

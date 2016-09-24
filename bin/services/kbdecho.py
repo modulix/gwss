@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from classes.SimpleService import SimpleService
+from routr import route, POST, GET
 
 class EchoService(SimpleService):
     """
@@ -10,4 +11,6 @@ class EchoService(SimpleService):
         self.reply(msg, {"action":"display", "data":msg["data"]})
 
 def kbdecho(config):
-    return EchoService("kbdecho", config)
+    inst = EchoService("kbdecho", config)
+    inst.public_actions = set(["kbdecho", "subscribe", "unsubscribe"])
+    return inst

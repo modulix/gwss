@@ -8,3 +8,6 @@ pygal
 pygal-maps-world
 CouchDB
 bidict
+python-dateutil
+routr
+msgpack-python

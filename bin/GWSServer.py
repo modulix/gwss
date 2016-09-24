@@ -107,6 +107,8 @@ class GWSServer():
         # Give the service awareness from other modules for inter-module communication
         for service in self.services.values():
             service.set_services(self.services)
+        for daemon in self.daemons.values():
+            daemon.proc.start()
         while True:
             read_fds, _, _ = select.select(self.listen_filenos.keys(), [], [])
             for fd in read_fds:

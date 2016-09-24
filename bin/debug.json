@@ -24,6 +24,16 @@
                     "format": "short"
                 }
             ]
+        },
+        "logzor":{
+            "logs":[
+                {
+                    "type": "file",
+                    "path": "/home/arthur/gwss/logzor.log",
+                    "level": "DEBUG",
+                    "format": "short"
+                }
+            ]
         }
     },
     "daemons":{
@@ -31,7 +41,7 @@
             "clients_master": {
                 "server": "0.0.0.0",
                 "port": 44400,
-                "html_dir": "/home/arthur/gwss/public_html/",
+                "html_dir": "/home/arthur/gwss/public_html",
                 "max_clients": 1000,
                 "logs":[
                     {

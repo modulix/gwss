@@ -14,8 +14,6 @@
 	// Display or not debug entries by default
 	gwss_debug = true;
 	
-	var notifications = [];
-	var max_notifications = 3;
 	var gwss = openSocket(44400);
 	gwss.onopen = function() {
 		var subscribe = {service:"kbdecho",action:"subscribe",data:{}};

@@ -9,28 +9,16 @@ from datetime import datetime
 class GWSSHandler():
     def __init__(self, client_service, environ, ws):
         self.logger = client_service.logger
-        self.logger.debug("GWSSHandler(%s):init" % id(self))
         #super(GWSSHandler, self).__init__()
         #self.gwss = gwss
         self.ws = ws
         self.environ = environ
         self.client_service = client_service
-        self.ip = ""
         self.daemon = True
         self.listen = True
-        try:
-            self.ip = self.environ["HTTP_X_REAL_IP"]
-        except:
-            pass
-            #sys.exc_clear()
-        if not self.ip:
-            try:
-                self.ip = self.environ["REMOTE_ADDR"]
-            except:
-                self.ip = "127.0.0.1"
-                pass
-                #sys.exc_clear()
-        self.logger.debug("GWSSHandler(%s):init:%s" % (id(self), self.ip))
+        ip = self.environ.get("HTTP_X_REAL_IP", self.environ.get("REMOTE_ADDR", "127.0.0.1"))
+        self.address = "%s:%s" % (ip, self.environ.get("REMOTE_PORT"))
+        self.logger.debug("GWSSHandler(%s):init" % id(self))
     def send(self,msg):
         try:
             self.ws.send(msg)
@@ -39,7 +27,8 @@ class GWSSHandler():
             pass
     def run(self):
         #self.gwss.logger.debug("GWSSHandler(%s) running..." % id(self))
-        self.client_service.add_client(self)
+        self.client_service.add_client(id(self), self)
+        self.send(str(id(self)))
         while self.listen:
             try:
                 message = self.ws.receive()
@@ -57,11 +46,14 @@ class GWSSHandler():
                     msg = json.loads(message)
                 except:
                     self.logger.debug("GWSSHandler(%s):error not valid JSON msg:%s" % (id(self),message))
-                    sys.exc_clear()
+                    continue
                 try:
+                    service = self.client_service.services[msg["service"]]
+                    if msg["action"] not in service.public_actions:
+                       continue
                     msg["source"] = {"service": self.client_service.name, "action":"send_client", "data": {"client":id(self)}}
                     self.client_service.send_action(msg)
                 except Exception as e:
                     self.logger.debug(str(e))
         self.logger.debug("GWSSHandler(%s) stopping..." % id(self))
-        self.client_service.del_client(self)
+        self.client_service.del_client(self.address)
